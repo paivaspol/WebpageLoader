@@ -12,7 +12,7 @@ PARAMS = 'params'
 REQUEST_ID = 'requestId'
 TIMESTAMP = 'timestamp'
 
-WAIT = 3.0
+WAIT = 1.0
 
 HTTP_PREFIX = 'http://'
 HTTPS_PREFIX = 'https://'
@@ -235,14 +235,14 @@ class ChromeRDPWebsocketStreaming(object):
     def set_touch_mode(self, conn):
         conn.send(json.dumps({"id": 23, "method": "Page.setTouchEmulationEnabled", "params": {"enabled": True}}))
         print 'enabled touch mode'
-        sleep(WAIT)
+        # sleep(WAIT)
 
     def set_device_metrics_override(self, conn, width, height):
         msg = { "id": 235, "method": "Page.setDeviceMetricsOverride", "params": {
             "width": width, "height": height, "fontScaleFactor": 1, "fitWindow": False}}
         conn.send(json.dumps(msg))
         print 'set device metrics override'
-        sleep(WAIT)
+        # sleep(WAIT)
 
     def can_clear_cache(self, debug_connection):
         '''
@@ -251,7 +251,7 @@ class ChromeRDPWebsocketStreaming(object):
         clear_cache = { "id": 1, "method": "Network.canClearBrowserCache" }
         debug_connection.send(json.dumps(clear_cache))
         print 'Cleared browser cache'
-        sleep(WAIT)
+        # sleep(WAIT)
 
     def disable_network_tracking(self, debug_connection):
         '''
@@ -260,7 +260,7 @@ class ChromeRDPWebsocketStreaming(object):
         disable_network = { "id": 2, "method": "Network.disable" }
         debug_connection.send(json.dumps(disable_network))
         print 'Disable network tracking.'
-        sleep(WAIT)
+        # sleep(WAIT)
 
     def disable_page_tracking(self, debug_connection):
         '''
@@ -269,7 +269,7 @@ class ChromeRDPWebsocketStreaming(object):
         disable_page = { 'id': 3, 'method': 'Page.disable' }
         debug_connection.send(json.dumps(disable_page))
         print 'Disable page tracking.'
-        sleep(WAIT)
+        # sleep(WAIT)
 
     def enable_network_tracking(self, debug_connection):
         '''
@@ -278,7 +278,7 @@ class ChromeRDPWebsocketStreaming(object):
         enable_network = { "id": 4, "method": "Network.enable" }
         debug_connection.send(json.dumps(enable_network))
         print 'Enabled network tracking.'
-        sleep(WAIT)
+        # sleep(WAIT)
         # disable_cache = { "id": 10, "method": "Network.setCacheDisabled", "params": { "cacheDisabled": True } }
         # debug_connection.send(json.dumps(disable_cache))
         # print 'Disable debugging connection.'
@@ -291,7 +291,7 @@ class ChromeRDPWebsocketStreaming(object):
         enable_console = { "id": 5, "method": "Console.enable" }
         debug_connection.send(json.dumps(enable_console))
         print 'Enabled console tracking.'
-        sleep(WAIT)
+        # sleep(WAIT)
 
     def disable_console_tracking(self, debug_connection):
         '''
@@ -300,7 +300,7 @@ class ChromeRDPWebsocketStreaming(object):
         disable_console = { 'id': 6, 'method': 'Console.disable' }
         debug_connection.send(json.dumps(disable_console))
         print 'Disable console tracking.'
-        sleep(WAIT)
+        # sleep(WAIT)
 
     def enable_page_tracking(self, debug_connection):
         '''
@@ -309,7 +309,7 @@ class ChromeRDPWebsocketStreaming(object):
         enable_page = { 'id': 7, 'method': 'Page.enable' }
         debug_connection.send(json.dumps(enable_page))
         print 'Enabled page tracking.'
-        sleep(WAIT)
+        # sleep(WAIT)
 
     def enable_runtime(self, debug_connection):
         '''
@@ -318,7 +318,7 @@ class ChromeRDPWebsocketStreaming(object):
         enable_page = { 'id': 8, 'method': 'Runtime.enable' }
         debug_connection.send(json.dumps(enable_page))
         print 'Enabled Runtime.'
-        sleep(WAIT)
+        # sleep(WAIT)
 
     def enable_trace_collection(self, debug_connection):
         '''
@@ -330,7 +330,7 @@ class ChromeRDPWebsocketStreaming(object):
         debug_connection.send(json.dumps(enable_trace_collection))
         self.tracing_started = True
         print 'Enabled trace collection'
-        sleep(WAIT)
+        # sleep(WAIT)
 
     def stop_trace_collection(self, debug_connection):
         '''
@@ -340,7 +340,7 @@ class ChromeRDPWebsocketStreaming(object):
         debug_connection.send(json.dumps(disable_trace_collection))
         self.tracing_started = False
         print 'Disables trace collection'
-        sleep(WAIT)
+        # sleep(WAIT)
 
     def capture_screenshot(self, debug_connection):
         '''
@@ -350,7 +350,7 @@ class ChromeRDPWebsocketStreaming(object):
         capture_screenshot = { 'method': 'Page.captureScreenshot' }
         debug_connection.send(json.dumps(capture_screenshot))
         # print 'Disables trace collection'
-        sleep(WAIT)
+        # sleep(WAIT)
 
     def get_debugging_url(self):
         '''
