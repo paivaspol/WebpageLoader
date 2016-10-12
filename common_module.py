@@ -59,19 +59,19 @@ def parse_page_start_end_time(filename):
         chrome_ts_load_event = float(line[4])
         return (line[0], (web_perf_nav_start, web_perf_load_event), (chrome_ts_nav_start, chrome_ts_load_event))
 
-NEXUS_6_CONFIG = '../device_config/nexus6.cfg'
+NEXUS_6_CONFIG = './device_config/nexus6.cfg'
 NEXUS_6 = 'Nexus_6'
-NEXUS_6_CHROMIUM_CONFIG = '../device_config/nexus6_chromium.cfg'
+NEXUS_6_CHROMIUM_CONFIG = './device_config/nexus6_chromium.cfg'
 NEXUS_6_CHROMIUM = 'Nexus_6_chromium'
-NEXUS_6_2_CONFIG = '../device_config/nexus6_2.cfg'
+NEXUS_6_2_CONFIG = './device_config/nexus6_2.cfg'
 NEXUS_6_2 = 'Nexus_6_2'
-NEXUS_6_2_CHROMIUM_CONFIG = '../device_config/nexus6_2_chromium.cfg'
+NEXUS_6_2_CHROMIUM_CONFIG = './device_config/nexus6_2_chromium.cfg'
 NEXUS_6_2_CHROMIUM = 'Nexus_6_2_chromium'
-NEXUS_5_CONFIG = '../device_config/nexus5.cfg'
+NEXUS_5_CONFIG = './device_config/nexus5.cfg'
 NEXUS_5 = 'Nexus_5'
-MAC_CONFIG = '../device_config/mac.cfg'
+MAC_CONFIG = './device_config/mac.cfg'
 MAC = 'mac'
-UBUNTU_CONFIG = '../device_config/ubuntu.cfg'
+UBUNTU_CONFIG = './device_config/ubuntu.cfg'
 UBUNTU = 'ubuntu'
 
 def get_device_config(device):

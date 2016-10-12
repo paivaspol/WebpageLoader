@@ -14,19 +14,19 @@ from PageLoadException import PageLoadException
 from utils import phone_connection_utils
 from utils import chrome_utils
 
-NEXUS_6_CONFIG = '../device_config/nexus6.cfg'
+NEXUS_6_CONFIG = './device_config/nexus6.cfg'
 NEXUS_6 = 'Nexus_6'
-NEXUS_6_CHROMIUM_CONFIG = '../device_config/nexus6_chromium.cfg'
+NEXUS_6_CHROMIUM_CONFIG = './device_config/nexus6_chromium.cfg'
 NEXUS_6_CHROMIUM = 'Nexus_6_chromium'
-NEXUS_6_2_CONFIG = '../device_config/nexus6_2.cfg'
+NEXUS_6_2_CONFIG = './device_config/nexus6_2.cfg'
 NEXUS_6_2 = 'Nexus_6_2'
-NEXUS_6_2_CHROMIUM_CONFIG = '../device_config/nexus6_2_chromium.cfg'
+NEXUS_6_2_CHROMIUM_CONFIG = './device_config/nexus6_2_chromium.cfg'
 NEXUS_6_2_CHROMIUM = 'Nexus_6_2_chromium'
-NEXUS_5_CONFIG = '../device_config/nexus5.cfg'
+NEXUS_5_CONFIG = './device_config/nexus5.cfg'
 NEXUS_5 = 'Nexus_5'
-MAC_CONFIG = '../device_config/mac.cfg'
+MAC_CONFIG = './device_config/mac.cfg'
 MAC = 'mac'
-UBUNTU_CONFIG = '../device_config/ubuntu.cfg'
+UBUNTU_CONFIG = './device_config/ubuntu.cfg'
 UBUNTU = 'ubuntu'
 
 HTTP_PREFIX = 'http://'
