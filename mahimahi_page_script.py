@@ -121,7 +121,8 @@ def main(config_filename, pages, iterations, device_name, mode, output_dir):
 
 def fetch_server_side_logs(page, output_dir):
     output_filename = os.path.join(output_dir, page)
-    command = 'scp -i ~/.ssh/vaspol_aws_key.pem ubuntu@ec2-54-237-249-55.compute-1.amazonaws.com:~/build/logs/{0} {1}'.format(page, output_dir)
+    # command = 'scp -i ~/.ssh/vaspol_aws_key.pem ubuntu@ec2-54-237-249-55.compute-1.amazonaws.com:~/build/logs/{0} {1}'.format(page, output_dir)
+    command = 'scp vaspol@apple-pi.eecs.umich.edu:/home/vaspol/Research/MobileWebOptimization/page_load_setup/build/logs/{0} {1}'.format(page, output_dir)
     subprocess.call(command, shell=True)
 
 def get_page_time_mapping(page_time_mapping_filename):
@@ -228,18 +229,32 @@ def load_one_website(page, iterations, output_dir, device_info, mode, replay_con
     Loads one website
     '''
     for run_index in range(0, iterations):
-        if args.start_tcpdump_and_cpu_measurements:
+        if args.start_measurements is not None and args.start_measurements == 'both':
             common_module.start_tcpdump_and_cpu_measurement(device_info[0])
+            phone_connection_utils.bring_chrome_to_foreground(device_info[2])
+        elif args.start_measurements is not None and args.start_measurements == 'tcpdump':
+            common_module.start_tcpdump(device_info[0])
+            phone_connection_utils.bring_chrome_to_foreground(device_info[2])
+        elif args.start_measurements is not None and args.start_measurements == 'cpu':
+            common_module.start_cpu_measurements(device_info[0])
             phone_connection_utils.bring_chrome_to_foreground(device_info[2])
 
         if args.get_chromium_logs:
             clear_chromium_logs(device_info[2]['id'])
 
-        result = load_page(page, run_index, output_dir, args.start_tcpdump_and_cpu_measurements, device_info, not args.start_tracing, mode, replay_configurations, current_time)
+        result = load_page(page, run_index, output_dir, args.start_measurements is not None, device_info, not args.start_tracing, mode, replay_configurations, current_time)
 
-        if args.start_tcpdump_and_cpu_measurements:
+        if args.start_measurements is not None and args.start_measurements == 'both':
             iteration_path = os.path.join(output_dir, str(run_index))
             common_module.stop_tcpdump_and_cpu_measurement(page.strip(), device_info[0], output_dir_run=iteration_path)
+            phone_connection_utils.bring_chrome_to_foreground(device_info[2])
+        elif args.start_measurements is not None and args.start_measurements == 'tcpdump':
+            iteration_path = os.path.join(output_dir, str(run_index))
+            common_module.stop_tcpdump(page.strip(), device_info[0], output_dir_run=iteration_path)
+            phone_connection_utils.bring_chrome_to_foreground(device_info[2])
+        elif args.start_measurements is not None and args.start_measurements == 'cpu':
+            iteration_path = os.path.join(output_dir, str(run_index))
+            common_module.stop_cpu_measurements(page.strip(), device_info[0], output_dir_run=iteration_path)
             phone_connection_utils.bring_chrome_to_foreground(device_info[2])
 
         if result is not None:
@@ -395,7 +410,6 @@ def generate_times(num_iterations):
         print 'Generating time {0}'.format(i)
         result.append(time.time())
         sleep(3)
-
     return result
 
 if __name__ == '__main__':
@@ -419,7 +433,7 @@ if __name__ == '__main__':
     parser.add_argument('--page-time-mapping', default=None)
     parser.add_argument('--without-dependencies', default=False, action='store_true')
     parser.add_argument('--fetch-server-side-logs', default=False, action='store_true')
-    parser.add_argument('--start-tcpdump-and-cpu-measurements', default=False, action='store_true')
+    parser.add_argument('--start-measurements', default=None, choices=[ 'tcpdump', 'cpu', 'both' ])
     parser.add_argument('--collect-tracing', default=False, action='store_true')
     args = parser.parse_args()
     if args.mode == 'delay_replay' and args.delay is None:
