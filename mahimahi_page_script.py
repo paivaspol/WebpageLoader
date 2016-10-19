@@ -35,10 +35,7 @@ def main(config_filename, pages, iterations, device_name, mode, output_dir):
         replay_configurations = replay_config_utils.get_page_replay_config(config_filename)
         current_time = time.time()
         current_time_map = None
-        if args.time is not None:
-            # For replay mode.
-            current_time = args.time
-        elif args.page_time_mapping is not None:
+        if args.page_time_mapping is not None:
             current_time_map = get_page_time_mapping(args.page_time_mapping)
 
         page_to_tries_counter = dict()
@@ -356,8 +353,6 @@ def load_page(raw_line, run_index, output_dir, start_measurements, device_info, 
         cmd += ' --collect-console'
     if args.collect_tracing:
         cmd += ' --collect-tracing'
-    # if run_index > 0:
-    #     cmd += ' --reload-page'
     print cmd
     page_load_process = subprocess.Popen(cmd.split())
 
@@ -431,7 +426,6 @@ if __name__ == '__main__':
     parser.add_argument('iterations', type=int)
     parser.add_argument('mode', choices=[ 'replay', 'delay_replay', 'per_packet_delay_replay', 'record' ])
     parser.add_argument('output_dir')
-    parser.add_argument('--time', default=None)
     parser.add_argument('--delay', default=None)
     parser.add_argument('--http-version', default=2, type=int)
     parser.add_argument('--start-tracing', default=False, action='store_true')

@@ -332,7 +332,7 @@ if __name__ == '__main__':
     parser.add_argument('num_repetitions', type=int)
     parser.add_argument('--output-dir', default='.')
     parser.add_argument('--use-caching-proxy', default=False, action='store_true')
-    parser.add_argument('--dont-start-measurements', default=False, action='store_true')
+    parser.add_argument('--start-measurements', default=False, action='store_true')
     parser.add_argument('--use-device', default=NEXUS_6_2)
     parser.add_argument('--disable-tracing', default=False, action='store_true')
     parser.add_argument('--record-content', default=False, action='store_true')
@@ -340,5 +340,4 @@ if __name__ == '__main__':
     parser.add_argument('--collect-tracing', default=False, action='store_true')
     parser.add_argument('--take-screenshots', default=False, action='store_true')
     args = parser.parse_args()
-    start_measurements = not args.dont_start_measurements
-    main(args.pages_file, args.num_repetitions, args.output_dir, args.use_caching_proxy, start_measurements, args.use_device, args.disable_tracing, args.record_content)
+    main(args.pages_file, args.num_repetitions, args.output_dir, args.use_caching_proxy, args.start_measurements, args.use_device, args.disable_tracing, args.record_content)
