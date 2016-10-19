@@ -274,8 +274,6 @@ def load_page(raw_line, run_index, output_dir, start_measurements, device, disab
         cmd += ' --disable-tracing'
     if record_contents:
         cmd += ' --record-content'
-    if args.collect_streaming:
-        cmd += ' --collect-streaming'
     if args.collect_console:
         cmd += ' --collect-console'
     if args.collect_tracing:
@@ -338,7 +336,6 @@ if __name__ == '__main__':
     parser.add_argument('--use-device', default=NEXUS_6_2)
     parser.add_argument('--disable-tracing', default=False, action='store_true')
     parser.add_argument('--record-content', default=False, action='store_true')
-    parser.add_argument('--collect-streaming', default=False, action='store_true')
     parser.add_argument('--collect-console', default=False, action='store_true')
     parser.add_argument('--collect-tracing', default=False, action='store_true')
     parser.add_argument('--take-screenshots', default=False, action='store_true')

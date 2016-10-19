@@ -346,8 +346,6 @@ def load_page(raw_line, run_index, output_dir, start_measurements, device_info, 
     signal.alarm(int(TIMEOUT))
     if disable_tracing:
         cmd += ' --disable-tracing'
-    if args.collect_streaming:
-        cmd += ' --collect-streaming'
     if args.get_chromium_logs:
         cmd += ' --get-chromium-logs'
     if args.get_dependency_baseline:
@@ -438,7 +436,6 @@ if __name__ == '__main__':
     parser.add_argument('--http-version', default=2, type=int)
     parser.add_argument('--start-tracing', default=False, action='store_true')
     parser.add_argument('--collect-console', default=False, action='store_true')
-    parser.add_argument('--collect-streaming', default=False, action='store_true')
     parser.add_argument('--get-chromium-logs', default=False, action='store_true')
     parser.add_argument('--get-dependency-baseline', default=False, action='store_true')
     parser.add_argument('--use-openvpn', default=False, action='store_true')

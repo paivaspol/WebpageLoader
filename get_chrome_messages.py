@@ -53,7 +53,14 @@ def main(device_configuration, url, disable_tracing, reload_page):
     if phone_connection_utils.SCREEN_SIZE in device_configuration:
         screen_size_config = device_configuration[phone_connection_utils.SCREEN_SIZE]
 
-    if args.collect_streaming:
+    if disable_tracing:
+        chrome_rdp_object_without_tracing = ChromeRDPWithoutTracing(debugging_url, url, user_agent_str, screen_size_config)
+        start_time, end_time = chrome_rdp_object_without_tracing.navigate_to_page(url, reload_page)
+        print str((start_time, end_time)) + ' ' + str((end_time - start_time))
+        escaped_url = common_module.escape_page(url)
+        print 'output_directory: ' + output_directory
+        write_page_start_end_time(escaped_url, output_directory, start_time, end_time)
+    else:
         # First, remove the network file, if it exists
         escaped_url = common_module.escape_page(url)
         network_filename = os.path.join(output_directory, 'network_' + escaped_url)
@@ -71,16 +78,6 @@ def main(device_configuration, url, disable_tracing, reload_page):
             print 'Setting SIGTERM handler'
             signal.signal(signal.SIGTERM, timeout_handler)
         debugging_socket.start()
-
-    elif disable_tracing:
-        chrome_rdp_object_without_tracing = ChromeRDPWithoutTracing(debugging_url, url, user_agent_str, screen_size_config)
-        start_time, end_time = chrome_rdp_object_without_tracing.navigate_to_page(url, reload_page)
-        print str((start_time, end_time)) + ' ' + str((end_time - start_time))
-        escaped_url = common_module.escape_page(url)
-        print 'output_directory: ' + output_directory
-        write_page_start_end_time(escaped_url, output_directory, start_time, end_time)
-    else:
-        debugging_socket = ChromeRDPWebsocket(debugging_url, url, device_configuration, reload_page, user_agent_str, screen_size_config, callback_on_page_done)
     
 def output_cpu_running_chrome(output_directory, cpu_id):
     '''
@@ -150,49 +147,6 @@ def callback_on_page_done_streaming(debugging_socket):
     new_debugging_websocket.close()
     # chrome_utils.close_tab(debugging_socket.device_configuration, debugging_socket.device_configuration['page_id'])
 
-def callback_on_page_done(debugging_socket, network_messages, timeline_messages, original_request_ts, load_event_ts, request_ids, device_configuration):
-    '''
-    Sets up the call back once the page is done loading.
-    '''
-    print 'Page load done. len(request_ids): ' + str(len(request_ids))
-    # First, close the connection.
-    debugging_socket.close_connection()
-    url = debugging_socket.get_navigation_url()
-    debugging_url = debugging_socket.get_debugging_url()
-    final_url = common_module.escape_page(url)
-    base_dir = create_output_directory_for_url(url)
-    
-    debugging_websocket = websocket.create_connection(debugging_url)
-
-    if args.record_content:
-        output_dir = os.path.join(base_dir, 'response_body')
-        if not os.path.exists(output_dir):
-            os.mkdir(output_dir)
-        output_response_body(debugging_websocket, request_ids, output_dir)
-        modified_html = navigation_utils.get_modified_html(debugging_websocket)
-        modified_html_filename = os.path.join(output_dir, 'modified_html.html')
-        with open(modified_html_filename, 'wb') as output_file:
-            output_file.write(beautify_html(modified_html))
-
-    # Get the start and end time of the execution
-    start_time, end_time = navigation_utils.get_start_end_time_with_socket(debugging_websocket)
-    # print 'output dir: ' + base_dir
-    write_page_start_end_time(final_url, base_dir, start_time, end_time, original_request_ts, load_event_ts)
-    
-    network_filename = os.path.join(base_dir, 'network_' + final_url)
-    timeline_filename = os.path.join(base_dir, 'timeline_' + final_url)
-    with open(network_filename, 'wb') as output_file:
-        for message in network_messages:
-            output_file.write('{0}\n'.format(json.dumps(message)))
-    # Output timeline objects
-    if len(timeline_messages) > 0:
-        with open(timeline_filename, 'wb') as output_file:
-            for message in timeline_messages:
-                output_file.write('{0}\n'.format(json.dumps(message)))
-    # get_resource_tree(debugging_url)
-
-    # chrome_utils.close_tab(debugging_socket.device_configuration, debugging_socket.device_configuration['page_id'])
-
 def beautify_html(original_html):
     return BeautifulSoup(original_html, 'html.parser').prettify().encode('utf-8')
 
@@ -249,7 +203,6 @@ if __name__ == '__main__':
     argparser.add_argument('--disable-tracing', default=False, action='store_true')
     argparser.add_argument('--reload-page', default=False, action='store_true')
     argparser.add_argument('--record-content', default=False, action='store_true')
-    argparser.add_argument('--collect-streaming', default=False, action='store_true')
     argparser.add_argument('--collect-console', default=False, action='store_true')
     argparser.add_argument('--get-chromium-logs', default=False, action='store_true')
     argparser.add_argument('--get-dependency-baseline', default=False, action='store_true')
@@ -260,8 +213,6 @@ if __name__ == '__main__':
     config_reader = ConfigParser()
     config_reader.read(args.config_filename)
     OUTPUT_DIR = args.output_dir
-
-    print 'collect streaming: ' + str(args.collect_streaming)
 
     # Get the device configuration.
     device_config = phone_connection_utils.get_device_configuration(config_reader, args.device)
