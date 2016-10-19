@@ -6,6 +6,9 @@ import requests
 import os
 import subprocess
 
+import time
+import threading
+
 def convert_to_ms_precision(timestamp):
     '''
     Converts the timestamp to millisecond precision.
@@ -169,28 +172,57 @@ def get_pages_with_redirected_url(pages_file):
                 pages.append(line)
     return pages
 
-def start_cpu_measurements(device):
+current_timer = None
+stopped_cpu_measurements = False
+
+def reset_cpu_measurements():
+    global stopped_cpu_measurements
+    stopped_cpu_measurements = False
+
+def start_cpu_measurements(device, output_file):
     device, device_config, _ = get_device_config(device)
-    start_cpu_measurement_command = 'python ./utils/start_cpu_measurement.py {0} {1}'.format(device_config, device)
-    print 'Executing: ' + start_cpu_measurement_command
-    subprocess.Popen(start_cpu_measurement_command, shell=True).wait()
+    # start_cpu_measurement_command = 'python ./utils/start_cpu_measurement.py {0} {1}'.format(device_config, device)
+    # print 'Executing: ' + start_cpu_measurement_command
+    # subprocess.Popen(start_cpu_measurement_command, shell=True).wait()
+    # read_command = 'adb shell "head -5 /proc/stat >> /sdcard/Research/result.txt"'.format(output_file)
+    timestamp_command = 'adb shell "echo \$EPOCHREALTIME" >> {0}'.format(output_file)
+    subprocess.call(timestamp_command, shell=True)
+    read_command = 'adb shell "head -5 /proc/stat" >> {0}'.format(output_file)
+    subprocess.call(read_command, shell=True)
+    # read_command = 'adb shell dumpsys cpuinfo | grep chromium >> {0}'.format(output_file)
+    global current_timer
+    global stopped_cpu_measurements
+
+    # if current_timer is not None:
+    #     current_timer.cancel()
+    if not stopped_cpu_measurements:
+        current_timer = threading.Timer(0.06, start_cpu_measurements, [ device, output_file ])
+        current_timer.start()
 
 def start_tcpdump(device):
     device, device_config, _ = get_device_config(device)
     start_tcpdump_command = 'python ./utils/start_tcpdump.py {0} {1}'.format(device_config, device)
     subprocess.Popen(start_tcpdump_command, shell=True).wait()
 
-def start_tcpdump_and_cpu_measurement(device):
-    start_cpu_measurements(device)
+def start_tcpdump_and_cpu_measurement(device, cpu_utilization_output_filename):
+    start_cpu_measurements(device, cpu_utilization_output_filename)
     start_tcpdump(device)
 
 def stop_cpu_measurements(line, device, output_dir_run='.'):
-    url = escape_page(line)
-    device, device_config, _ = get_device_config(device)
-    output_directory = os.path.join(output_dir_run, url)
-    cpu_measurement_output_filename = os.path.join(output_directory, 'cpu_measurement.txt')
-    stop_cpu_measurement = 'python ./utils/stop_cpu_measurement.py {0} {1} {2}'.format(device_config, device, cpu_measurement_output_filename)
-    subprocess.Popen(stop_cpu_measurement, shell=True).wait()
+    # url = escape_page(line)
+    # device, device_config, _ = get_device_config(device)
+    # output_directory = os.path.join(output_dir_run, url)
+    # cpu_measurement_output_filename = os.path.join(output_directory, 'cpu_measurement.txt')
+    # stop_cpu_measurement = 'python ./utils/stop_cpu_measurement.py {0} {1} {2}'.format(device_config, device, cpu_measurement_output_filename)
+    # subprocess.Popen(stop_cpu_measurement, shell=True).wait()
+    global current_timer
+    global stopped_cpu_measurements
+    stopped_cpu_measurements = True
+    current_timer.cancel()
+    # current_timer.join()
+    # current_timer = None
+    print 'Stopped CPU measurements...'
+    time.sleep(2)
 
 def stop_tcpdump(line, device, output_dir_run='.'):
     url = escape_page(line)

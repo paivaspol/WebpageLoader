@@ -114,10 +114,12 @@ def main(config_filename, pages, iterations, device_name, mode, output_dir):
             done(replay_configurations)
 
         print 'Failed pages: ' + str(failed_pages)
+
     except KeyboardInterrupt as e:
         print 'Pages: ' + str(pages)
         print 'Failed pages: ' + str(failed_pages)
         print 'Completed pages: ' + str(completed_pages)
+        exit(0)
 
 def fetch_server_side_logs(page, output_dir):
     output_filename = os.path.join(output_dir, page)
@@ -229,15 +231,32 @@ def load_one_website(page, iterations, output_dir, device_info, mode, replay_con
     Loads one website
     '''
     for run_index in range(0, iterations):
+        if not os.path.exists(output_dir):
+            os.mkdir(output_dir)
+
+        iteration_path = os.path.join(output_dir, str(run_index))
+        if not os.path.exists(iteration_path):
+            os.mkdir(iteration_path)
+
         if args.start_measurements is not None and args.start_measurements == 'both':
-            common_module.start_tcpdump_and_cpu_measurement(device_info[0])
-            phone_connection_utils.bring_chrome_to_foreground(device_info[2])
+            escaped_page = common_module.escape_page(page)
+            if not os.path.exists(os.path.join(iteration_path, escaped_page)):
+                os.mkdir(os.path.join(iteration_path, escaped_page))
+
+            cpu_output_filename = os.path.join(iteration_path, escaped_page, 'cpu_measurements.txt')
+            common_module.reset_cpu_measurements()
+            common_module.start_tcpdump_and_cpu_measurement(device_info[0], cpu_output_filename)
         elif args.start_measurements is not None and args.start_measurements == 'tcpdump':
             common_module.start_tcpdump(device_info[0])
-            phone_connection_utils.bring_chrome_to_foreground(device_info[2])
         elif args.start_measurements is not None and args.start_measurements == 'cpu':
-            common_module.start_cpu_measurements(device_info[0])
-            phone_connection_utils.bring_chrome_to_foreground(device_info[2])
+            print 'Starting CPU measurements...'
+            escaped_page = common_module.escape_page(page)
+            if not os.path.exists(os.path.join(iteration_path, escaped_page)):
+                os.mkdir(os.path.join(iteration_path, escaped_page))
+
+            output_filename = os.path.join(iteration_path, escaped_page, 'cpu_measurements.txt')
+            common_module.reset_cpu_measurements()
+            common_module.start_cpu_measurements(device_info[0], output_filename)
 
         if args.get_chromium_logs:
             clear_chromium_logs(device_info[2]['id'])
@@ -245,17 +264,11 @@ def load_one_website(page, iterations, output_dir, device_info, mode, replay_con
         result = load_page(page, run_index, output_dir, args.start_measurements is not None, device_info, not args.start_tracing, mode, replay_configurations, current_time)
 
         if args.start_measurements is not None and args.start_measurements == 'both':
-            iteration_path = os.path.join(output_dir, str(run_index))
             common_module.stop_tcpdump_and_cpu_measurement(page.strip(), device_info[0], output_dir_run=iteration_path)
-            phone_connection_utils.bring_chrome_to_foreground(device_info[2])
         elif args.start_measurements is not None and args.start_measurements == 'tcpdump':
-            iteration_path = os.path.join(output_dir, str(run_index))
             common_module.stop_tcpdump(page.strip(), device_info[0], output_dir_run=iteration_path)
-            phone_connection_utils.bring_chrome_to_foreground(device_info[2])
         elif args.start_measurements is not None and args.start_measurements == 'cpu':
-            iteration_path = os.path.join(output_dir, str(run_index))
             common_module.stop_cpu_measurements(page.strip(), device_info[0], output_dir_run=iteration_path)
-            phone_connection_utils.bring_chrome_to_foreground(device_info[2])
 
         if result is not None:
             return result, run_index
