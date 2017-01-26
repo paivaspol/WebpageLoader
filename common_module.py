@@ -62,45 +62,45 @@ def parse_page_start_end_time(filename):
         chrome_ts_load_event = float(line[4])
         return (line[0], (web_perf_nav_start, web_perf_load_event), (chrome_ts_nav_start, chrome_ts_load_event))
 
-NEXUS_6_CONFIG = './device_config/nexus6.cfg'
+NEXUS_6_CONFIG = '/device_config/nexus6.cfg'
 NEXUS_6 = 'Nexus_6'
-NEXUS_6_CHROMIUM_CONFIG = './device_config/nexus6_chromium.cfg'
+NEXUS_6_CHROMIUM_CONFIG = '/device_config/nexus6_chromium.cfg'
 NEXUS_6_CHROMIUM = 'Nexus_6_chromium'
-NEXUS_6_2_CONFIG = './device_config/nexus6_2.cfg'
+NEXUS_6_2_CONFIG = '/device_config/nexus6_2.cfg'
 NEXUS_6_2 = 'Nexus_6_2'
-NEXUS_6_2_CHROMIUM_CONFIG = './device_config/nexus6_2_chromium.cfg'
+NEXUS_6_2_CHROMIUM_CONFIG = '/device_config/nexus6_2_chromium.cfg'
 NEXUS_6_2_CHROMIUM = 'Nexus_6_2_chromium'
-NEXUS_5_CONFIG = './device_config/nexus5.cfg'
+NEXUS_5_CONFIG = '/device_config/nexus5.cfg'
 NEXUS_5 = 'Nexus_5'
-MAC_CONFIG = './device_config/mac.cfg'
+MAC_CONFIG = '/device_config/mac.cfg'
 MAC = 'mac'
-UBUNTU_CONFIG = './device_config/ubuntu.cfg'
+UBUNTU_CONFIG = '/device_config/ubuntu.cfg'
 UBUNTU = 'ubuntu'
 
-def get_device_config(device):
+def get_device_config(device, running_path='.'):
     device_config_filename = ''
     device_config_object = None
     if device == NEXUS_6:
         device = NEXUS_6
-        device_config_filename = NEXUS_6_CONFIG
+        device_config_filename = running_path + NEXUS_6_CONFIG
     elif device == NEXUS_6_2:
         device = NEXUS_6_2
-        device_config_filename = NEXUS_6_2_CONFIG
+        device_config_filename = running_path + NEXUS_6_2_CONFIG
     elif device == NEXUS_5:
         device = NEXUS_5
-        device_config_filename = NEXUS_5_CONFIG
+        device_config_filename = running_path + NEXUS_5_CONFIG
     elif device == MAC:
         device = MAC
-        device_config_filename = MAC_CONFIG
+        device_config_filename = running_path + MAC_CONFIG
     elif device == NEXUS_6_CHROMIUM:
         device = NEXUS_6_CHROMIUM
-        device_config_filename = NEXUS_6_CHROMIUM_CONFIG
+        device_config_filename = running_path + NEXUS_6_CHROMIUM_CONFIG
     elif device == NEXUS_6_2_CHROMIUM:
         device = NEXUS_6_2_CHROMIUM
-        device_config_filename = NEXUS_6_2_CHROMIUM_CONFIG
+        device_config_filename = running_path + NEXUS_6_2_CHROMIUM_CONFIG
     elif device == UBUNTU:
         device = UBUNTU
-        device_config_filename = UBUNTU_CONFIG
+        device_config_filename = running_path + UBUNTU_CONFIG
     else:
         print 'available devices: {0}, {1}, {2}, {3}, {4}, {5}'.format(NEXUS_6, NEXUS_6_2, NEXUS_5, NEXUS_6_CHROMIUM, NEXUS_6_2_CHROMIUM, MAC, UBUNTU)
         exit(1)
@@ -179,15 +179,15 @@ def reset_cpu_measurements():
     global stopped_cpu_measurements
     stopped_cpu_measurements = False
 
-def start_cpu_measurements(device, output_file):
-    device, device_config, _ = get_device_config(device)
+def start_cpu_measurements(device, output_file, running_path='.'):
+    device, device_config, device_config_obj = get_device_config(device, running_path=running_path)
     # start_cpu_measurement_command = 'python ./utils/start_cpu_measurement.py {0} {1}'.format(device_config, device)
     # print 'Executing: ' + start_cpu_measurement_command
     # subprocess.Popen(start_cpu_measurement_command, shell=True).wait()
     # read_command = 'adb shell "head -5 /proc/stat >> /sdcard/Research/result.txt"'.format(output_file)
-    timestamp_command = 'adb shell "echo \$EPOCHREALTIME" >> {0}'.format(output_file)
+    timestamp_command = 'adb -s {0} shell "echo \$EPOCHREALTIME" >> {1}'.format(device_config_obj['id'], output_file)
     subprocess.call(timestamp_command, shell=True)
-    read_command = 'adb shell "head -5 /proc/stat" >> {0}'.format(output_file)
+    read_command = 'adb -s {0} shell "head -5 /proc/stat" >> {1}'.format(device_config_obj['id'], output_file)
     subprocess.call(read_command, shell=True)
     # read_command = 'adb shell dumpsys cpuinfo | grep chromium >> {0}'.format(output_file)
     global current_timer
@@ -199,16 +199,16 @@ def start_cpu_measurements(device, output_file):
         current_timer = threading.Timer(0.06, start_cpu_measurements, [ device, output_file ])
         current_timer.start()
 
-def start_tcpdump(device):
-    device, device_config, _ = get_device_config(device)
+def start_tcpdump(device, running_path='.'):
+    device, device_config, _ = get_device_config(device, running_path=running_path)
     start_tcpdump_command = 'python ./utils/start_tcpdump.py {0} {1}'.format(device_config, device)
     subprocess.Popen(start_tcpdump_command, shell=True).wait()
 
-def start_tcpdump_and_cpu_measurement(device, cpu_utilization_output_filename):
-    start_cpu_measurements(device, cpu_utilization_output_filename)
-    start_tcpdump(device)
+def start_tcpdump_and_cpu_measurement(device, cpu_utilization_output_filename, running_path='.'):
+    start_cpu_measurements(device, cpu_utilization_output_filename, running_path=running_path)
+    start_tcpdump(device, running_path)
 
-def stop_cpu_measurements(line, device, output_dir_run='.'):
+def stop_cpu_measurements(line, device, output_dir_run='.', running_path='.'):
     # url = escape_page(line)
     # device, device_config, _ = get_device_config(device)
     # output_directory = os.path.join(output_dir_run, url)
@@ -224,14 +224,14 @@ def stop_cpu_measurements(line, device, output_dir_run='.'):
     print 'Stopped CPU measurements...'
     time.sleep(2)
 
-def stop_tcpdump(line, device, output_dir_run='.'):
+def stop_tcpdump(line, device, output_dir_run='.', running_path='.'):
     url = escape_page(line)
-    device, device_config, _ = get_device_config(device)
+    device, device_config, _ = get_device_config(device, running_path=running_path)
     output_directory = os.path.join(output_dir_run, url)
     pcap_output_filename = os.path.join(output_directory, 'output.pcap')
     stop_tcpdump = 'python ./utils/stop_tcpdump.py {0} {1} --output-dir {2} --no-sleep'.format(device_config, device, pcap_output_filename)
     subprocess.Popen(stop_tcpdump, shell=True).wait()
 
-def stop_tcpdump_and_cpu_measurement(line, device, output_dir_run='.'):
-    stop_cpu_measurements(line, device, output_dir_run)
-    stop_tcpdump(line, device, output_dir_run)
+def stop_tcpdump_and_cpu_measurement(line, device, output_dir_run='.', running_path='.'):
+    stop_cpu_measurements(line, device, output_dir_run, running_path)
+    stop_tcpdump(line, device, output_dir_run, running_path)

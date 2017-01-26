@@ -1,2 +1,5 @@
-https://news.google.com/ https://news.google.com/
-http://android.livescore.com/ http://android.livescore.com/
+http://www.espn.com/ http://www.espn.com/
+# http://www.scout.com/ http://www.scout.com/
+# https://www.yahoo.com/news/ https://www.yahoo.com/news/
+# http://www.espncricinfo.com/ http://www.espncricinfo.com/
+# http://android.livescore.com/ http://android.livescore.com/

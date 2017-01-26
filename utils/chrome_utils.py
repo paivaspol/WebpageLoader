@@ -42,16 +42,17 @@ def get_debugging_url(device_configuration):
     '''
     Connects the client to the debugging socket.
     '''
-    # print 'here (0)'
-    # print 'response: ' + str(response.text)
     base_url = 'http://localhost:{0}/json'
     url = base_url.format(get_debugging_port(device_configuration))
     response = requests.get(url)
     response_json = json.loads(response.text)
     if len(response_json) == 0:
-        return create_tab(device_configuration)
-    else:
-        return extract_debugging_url_and_page_id(response_json[0])
+        create_tab(device_configuration)
+        base_url = 'http://localhost:{0}/json'
+        url = base_url.format(get_debugging_port(device_configuration))
+        response = requests.get(url)
+        response_json = json.loads(response.text)
+    return extract_debugging_url_and_page_id(response_json[0])
 
 def close_tab(device_configuration, page_id):
     '''

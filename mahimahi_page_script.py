@@ -21,9 +21,9 @@ from utils import phone_connection_utils
 
 WAIT = 2
 TIMEOUT = int(1 * 60)
-TIMEOUT_DEPENDENCY_BASELINE = 0.5 * 60
+TIMEOUT_DEPENDENCY_BASELINE = 0.2 * 60 # 42seconds
 MAX_TRIES = 7
-MAX_LOAD_TRIES = 3
+MAX_LOAD_TRIES = 2
 
 def main(config_filename, pages, iterations, device_name, mode, output_dir):
     failed_pages = []
@@ -42,7 +42,7 @@ def main(config_filename, pages, iterations, device_name, mode, output_dir):
 
         for page_tuple in pages:
             page = page_tuple[0]
-            redirected_page = page_tuple[1]
+            redirected_page = page_tuple[len(page_tuple) - 1]
             print 'Page: ' + page
             if page not in page_to_tries_counter:
                 page_to_tries_counter[page] = 0
@@ -74,8 +74,7 @@ def main(config_filename, pages, iterations, device_name, mode, output_dir):
 
             print 'Started Proxy'
             if args.use_openvpn:
-                phone_connection_utils.bring_openvpn_connect_foreground(device_info[2])
-                phone_connection_utils.toggle_openvpn_button(device_info[2])
+                start_vpn(device_info[2])
                 sleep(2)
 
             if args.pac_file_location is not None:
@@ -107,6 +106,13 @@ def main(config_filename, pages, iterations, device_name, mode, output_dir):
                 if not os.path.exists(server_side_output_dir):
                     os.mkdir(server_side_output_dir)
                 fetch_server_side_logs(escaped_page, server_side_output_dir)
+                server_side_output_dir = os.path.join(output_dir, 'reverse_proxy_logs')
+                if not os.path.exists(server_side_output_dir):
+                    os.mkdir(server_side_output_dir)
+                fetch_reverse_proxy_logs(escaped_page, server_side_output_dir)
+
+            if mode == 'record':
+                sleep(3)
         if mode == 'record':
             done(replay_configurations)
 
@@ -118,10 +124,23 @@ def main(config_filename, pages, iterations, device_name, mode, output_dir):
         print 'Completed pages: ' + str(completed_pages)
         exit(0)
 
+def start_vpn(device_info):
+    phone_connection_utils.bring_openvpn_connect_foreground(device_info)
+    phone_connection_utils.toggle_openvpn_button(device_info)
+    while not phone_connection_utils.is_connected_to_vpn(device_info):
+        phone_connection_utils.toggle_openvpn_button(device_info)
+        sleep(0.1)
+
 def fetch_server_side_logs(page, output_dir):
     output_filename = os.path.join(output_dir, page)
-    # command = 'scp -i ~/.ssh/vaspol_aws_key.pem ubuntu@ec2-54-237-249-55.compute-1.amazonaws.com:~/build/logs/{0} {1}'.format(page, output_dir)
+    # command = 'scp -i ~/.ssh/vaspol_aws_key.pem ubuntu@ec2-54-159-140-131.compute-1.amazonaws.com:~/build/logs/{0} {1}'.format(page, output_dir)
     command = 'scp vaspol@apple-pi.eecs.umich.edu:/home/vaspol/Research/MobileWebOptimization/page_load_setup/build/logs/{0} {1}'.format(page, output_dir)
+    subprocess.call(command, shell=True)
+
+def fetch_reverse_proxy_logs(page, output_dir):
+    output_filename = os.path.join(output_dir, page)
+    # command = 'scp -i ~/.ssh/vaspol_aws_key.pem ubuntu@ec2-54-159-140-131.compute-1.amazonaws.com:~/build/logs/{0} {1}'.format(page, output_dir)
+    command = 'scp vaspol@apple-pi.eecs.umich.edu:/home/vaspol/Research/MobileWebOptimization/page_load_setup/build/error-logs/{0} {1}'.format(page + '.log', output_dir)
     subprocess.call(command, shell=True)
 
 def get_page_time_mapping(page_time_mapping_filename):
@@ -136,6 +155,7 @@ def done(replay_configurations):
     start_proxy_url = 'http://{0}:{1}/done'.format( \
             replay_configurations[replay_config_utils.SERVER_HOSTNAME], \
             replay_configurations[replay_config_utils.SERVER_PORT])
+    sleep(0.01)
     result = requests.get(start_proxy_url)
     print 'Done'
 
@@ -188,7 +208,7 @@ def start_proxy(mode, page, time, replay_configurations, delay=0):
             start_proxy_url += '&dependencies=yes'
 
         print start_proxy_url
-
+        sleep(0.01)
         result = requests.get(start_proxy_url)
         # proxy_started = result.status_code == 200 and result.text.strip() == 'Proxy Started' \
         #         and check_proxy_running(replay_configurations, mode)
@@ -214,6 +234,7 @@ def stop_proxy(mode, page, time, replay_configurations):
                 replay_configurations[replay_config_utils.SERVER_HOSTNAME], \
                 replay_configurations[replay_config_utils.SERVER_PORT], \
                 server_mode, page, time)
+    sleep(0.01)
     result = requests.get(url)
     # proxy_started = not (result.status_code == 200 and result.text.strip() == 'Proxy Stopped') \
     #         and check_proxy_running(replay_configurations, mode)
@@ -221,7 +242,7 @@ def stop_proxy(mode, page, time, replay_configurations):
     if proxy_started:
         return proxy_started
     print 'request result: ' + result.text
-    sleep(10)
+    sleep(2)
 
 def load_one_website(page, iterations, output_dir, device_info, mode, replay_configurations, current_time):
     '''
@@ -258,7 +279,8 @@ def load_one_website(page, iterations, output_dir, device_info, mode, replay_con
         if args.get_chromium_logs:
             clear_chromium_logs(device_info[2]['id'])
 
-        result = load_page(page, run_index, output_dir, args.start_measurements is not None, device_info, not args.start_tracing, mode, replay_configurations, current_time)
+        # Second False is always start tracing.
+        result = load_page(page, run_index, output_dir, args.start_measurements is not None, device_info, False, mode, replay_configurations, current_time)
 
         if args.start_measurements is not None and args.start_measurements == 'both':
             common_module.stop_tcpdump_and_cpu_measurement(page.strip(), device_info[0], output_dir_run=iteration_path)
@@ -272,7 +294,8 @@ def load_one_website(page, iterations, output_dir, device_info, mode, replay_con
 
         while common_module.check_previous_page_load(run_index, output_dir, page):
             clear_chromium_logs(device_info[2]['id'])
-            result = load_page(page, run_index, output_dir, False, device_info, not args.start_tracing, mode, replay_configurations, current_time)
+            # Second False is always start tracing.
+            result = load_page(page, run_index, output_dir, False, device_info, False, mode, replay_configurations, current_time)
             if result is not None:
                 return result, run_index
     return None, -1
@@ -297,6 +320,7 @@ def check_proxy_running(config, mode):
                 server_check, \
                 args.http_version)
 
+    sleep(0.01)
     result = requests.get(url)
     return parse_check_result(result.text)
 
@@ -311,6 +335,7 @@ def check_proxy_stopped(config, mode):
                 config[replay_config_utils.SERVER_HOSTNAME], \
                 config[replay_config_utils.SERVER_PORT], \
                 server_check)
+    sleep(0.01)
     result = requests.get(url)
     return parse_check_result(result.text, 'stopped')
 
@@ -341,8 +366,6 @@ def load_page(raw_line, run_index, output_dir, start_measurements, device_info, 
     page = raw_line.strip()
     cmd = 'python get_chrome_messages.py {1} {2} {0} --output-dir {3}'.format(page, device_info[1], device_info[0], output_dir_run)
     signal.alarm(int(TIMEOUT))
-    if disable_tracing:
-        cmd += ' --disable-tracing'
     if args.get_chromium_logs:
         cmd += ' --get-chromium-logs'
     if args.get_dependency_baseline:
@@ -375,10 +398,15 @@ def load_page(raw_line, run_index, output_dir, start_measurements, device_info, 
         # Kill the browser and append a page.
         if not args.get_dependency_baseline:
             stop_proxy(mode, raw_line, current_time, replay_configurations)
-        chrome_utils.close_all_tabs(device_info[2])
-        if not args.get_chromium_logs:
-            common_module.initialize_browser(device_info) # Start the browser
-        return page
+            try:
+                chrome_utils.close_all_tabs(device_info[2])
+                if not args.get_chromium_logs:
+                    common_module.initialize_browser(device_info) # Start the browser
+            except Exception as e:
+                print 'Got exception ' + str(e) + ', but we\'ll just ignore it'
+            return page
+        else: # This is when we are getting the dependencies baseline
+            return None
     return None
 
 def clear_chromium_logs(device_id):
@@ -428,7 +456,6 @@ if __name__ == '__main__':
     parser.add_argument('output_dir')
     parser.add_argument('--delay', default=None)
     parser.add_argument('--http-version', default=2, type=int)
-    parser.add_argument('--start-tracing', default=False, action='store_true')
     parser.add_argument('--collect-console', default=False, action='store_true')
     parser.add_argument('--get-chromium-logs', default=False, action='store_true')
     parser.add_argument('--get-dependency-baseline', default=False, action='store_true')
@@ -442,8 +469,6 @@ if __name__ == '__main__':
     args = parser.parse_args()
     if args.mode == 'delay_replay' and args.delay is None:
         sys.exit("Must specify delay")
-    elif args.time is not None and args.page_time_mapping is not None:
-        sys.exit("Specify either time or time mapping")
 
     pages = common_module.get_pages_with_redirected_url(args.pages_filename)
     main(args.replay_config_filename, pages, args.iterations, args.device_name, args.mode, args.output_dir)

@@ -14,26 +14,26 @@ from PageLoadException import PageLoadException
 from utils import phone_connection_utils
 from utils import chrome_utils
 
-NEXUS_6_CONFIG = './device_config/nexus6.cfg'
+NEXUS_6_CONFIG = '/device_config/nexus6.cfg'
 NEXUS_6 = 'Nexus_6'
-NEXUS_6_CHROMIUM_CONFIG = './device_config/nexus6_chromium.cfg'
+NEXUS_6_CHROMIUM_CONFIG = '/device_config/nexus6_chromium.cfg'
 NEXUS_6_CHROMIUM = 'Nexus_6_chromium'
-NEXUS_6_2_CONFIG = './device_config/nexus6_2.cfg'
+NEXUS_6_2_CONFIG = '/device_config/nexus6_2.cfg'
 NEXUS_6_2 = 'Nexus_6_2'
-NEXUS_6_2_CHROMIUM_CONFIG = './device_config/nexus6_2_chromium.cfg'
+NEXUS_6_2_CHROMIUM_CONFIG = '/device_config/nexus6_2_chromium.cfg'
 NEXUS_6_2_CHROMIUM = 'Nexus_6_2_chromium'
-NEXUS_5_CONFIG = './device_config/nexus5.cfg'
+NEXUS_5_CONFIG = '/device_config/nexus5.cfg'
 NEXUS_5 = 'Nexus_5'
-MAC_CONFIG = './device_config/mac.cfg'
+MAC_CONFIG = '/device_config/mac.cfg'
 MAC = 'mac'
-UBUNTU_CONFIG = './device_config/ubuntu.cfg'
+UBUNTU_CONFIG = '/device_config/ubuntu.cfg'
 UBUNTU = 'ubuntu'
 
 HTTP_PREFIX = 'http://'
 HTTPS_PREFIX = 'https://'
 WWW_PREFIX = 'www.'
 
-TIMEOUT = 3 * 60 # set to 3 minutes
+TIMEOUT = 1 * 60 # set to 3 minutes
 # TIMEOUT = 1
 PAUSE = 2
 BUFFER_FOR_TRACE = 5
@@ -186,23 +186,81 @@ def load_pages_with_measurement_and_tracing_enabled(pages, output_dir, num_repet
         page = pages.pop(0)
         print 'page: ' + page
         i = 0
+        initialize_browser(device)
         while i < num_repetitions:
             try:
-                common_module.start_tcpdump_and_cpu_measurement(device)
-                initialize_browser(device)
+                if not os.path.exists(output_dir):
+                    os.mkdir(output_dir)
+
+                iteration_path = os.path.join(output_dir, str(i))
+                if not os.path.exists(iteration_path):
+                    os.mkdir(iteration_path)
+
+                print device
+
+                if args.start_measurements is not None and args.start_measurements == 'both':
+                    escaped_page = common_module.escape_page(page)
+                    if not os.path.exists(os.path.join(iteration_path, escaped_page)):
+                        os.mkdir(os.path.join(iteration_path, escaped_page))
+
+                    cpu_output_filename = os.path.join(iteration_path, escaped_page, 'cpu_measurements.txt')
+                    common_module.reset_cpu_measurements()
+                    common_module.start_tcpdump_and_cpu_measurement(device, cpu_output_filename, running_path=args.current_path)
+                elif args.start_measurements is not None and args.start_measurements == 'tcpdump':
+                    common_module.start_tcpdump(device, running_path=args.current_path)
+                elif args.start_measurements is not None and args.start_measurements == 'cpu':
+                    print 'Starting CPU measurements...'
+                    escaped_page = common_module.escape_page(page)
+                    if not os.path.exists(os.path.join(iteration_path, escaped_page)):
+                        os.mkdir(os.path.join(iteration_path, escaped_page))
+
+                    output_filename = os.path.join(iteration_path, escaped_page, 'cpu_measurements.txt')
+                    common_module.reset_cpu_measurements()
+                    common_module.start_cpu_measurements(device, output_filename, running_path=args.current_path)
+
                 signal.alarm(TIMEOUT) # Set alarm for TIMEOUT
                 load_page(page, i, output_dir, True, device, False, record_contents)
                 signal.alarm(0) # Reset the alarm
                 iteration_path = os.path.join(output_dir, str(i))
-                common_module.stop_tcpdump_and_cpu_measurement(page.strip(), device, output_dir_run=iteration_path)
+
+                if args.start_measurements is not None and args.start_measurements == 'both':
+                    common_module.stop_tcpdump_and_cpu_measurement(page.strip(), device, output_dir_run=iteration_path, running_path=args.current_path)
+                elif args.start_measurements is not None and args.start_measurements == 'tcpdump':
+                    common_module.stop_tcpdump(page.strip(), device, output_dir_run=iteration_path, running_path=args.current_path)
+                elif args.start_measurements is not None and args.start_measurements == 'cpu':
+                    common_module.stop_cpu_measurements(page.strip(), device, output_dir_run=iteration_path, running_path=args.current_path)
+
                 while common_module.check_previous_page_load(i, output_dir, page):
-                    common_module.start_tcpdump_and_cpu_measurement(device)
-                    initialize_browser(device)
+                    if args.start_measurements is not None and args.start_measurements == 'both':
+                        escaped_page = common_module.escape_page(page)
+                        if not os.path.exists(os.path.join(iteration_path, escaped_page)):
+                            os.mkdir(os.path.join(iteration_path, escaped_page))
+
+                        cpu_output_filename = os.path.join(iteration_path, escaped_page, 'cpu_measurements.txt')
+                        common_module.reset_cpu_measurements()
+                        common_module.start_tcpdump_and_cpu_measurement(device, cpu_output_filename, running_path=args.current_path)
+                    elif args.start_measurements is not None and args.start_measurements == 'tcpdump':
+                        common_module.start_tcpdump(device, running_path=args.current_path)
+                    elif args.start_measurements is not None and args.start_measurements == 'cpu':
+                        print 'Starting CPU measurements...'
+                        escaped_page = common_module.escape_page(page)
+                        if not os.path.exists(os.path.join(iteration_path, escaped_page)):
+                            os.mkdir(os.path.join(iteration_path, escaped_page))
+
+                        output_filename = os.path.join(iteration_path, escaped_page, 'cpu_measurements.txt')
+                        common_module.reset_cpu_measurements()
+                        common_module.start_cpu_measurements(device, output_filename, running_path=args.current_path)
+
                     signal.alarm(TIMEOUT) # Set alarm for TIMEOUT
                     load_page(page, i, output_dir, True, device, False, record_contents)
                     signal.alarm(0) # Reset the alarm
                     iteration_path = os.path.join(output_dir, str(i - 1))
-                    common_module.stop_tcpdump_and_cpu_measurement(page.strip(), device, output_dir_run=iteration_path)
+                    if args.start_measurements is not None and args.start_measurements == 'both':
+                        common_module.stop_tcpdump_and_cpu_measurement(page.strip(), device, output_dir_run=iteration_path)
+                    elif args.start_measurements is not None and args.start_measurements == 'tcpdump':
+                        common_module.stop_tcpdump(page.strip(), device, output_dir_run=iteration_path)
+                    elif args.start_measurements is not None and args.start_measurements == 'cpu':
+                        common_module.stop_cpu_measurements(page.strip(), device, output_dir_run=iteration_path)
                 i += 1
             except PageLoadException as e:
                 print 'Timeout for {0}-th load. Append to end of queue...'.format(i)
@@ -212,7 +270,7 @@ def load_pages_with_measurement_and_tracing_enabled(pages, output_dir, num_repet
                 chrome_utils.close_all_tabs(device_config_obj)
                 initialize_browser(device)
                 pages.append(page)
-                phone_connection_utils.stop_taking_screenshopts(device_config_obj)
+                # phone_connection_utils.stop_taking_screenshopts(device_config_obj)
                 break
             sleep(PAUSE)
 
@@ -269,7 +327,7 @@ def load_page(raw_line, run_index, output_dir, start_measurements, device, disab
     device, device_config = get_device_config(device)
 
     line = raw_line.strip()
-    cmd = 'python get_chrome_messages.py {1} {2} {0} --output-dir {3}'.format(line, device_config, device, output_dir_run) 
+    cmd = 'python /home/vaspol/Research/MobileWebOptimization/WebpageLoader/get_chrome_messages.py {1} {2} {0} --output-dir {3}'.format(line, device_config, device, output_dir_run) 
     if disable_tracing:
         cmd += ' --disable-tracing'
     if record_contents:
@@ -309,19 +367,19 @@ def timeout_handler(signum, frame):
 
 def get_device_config(device):
     if device == NEXUS_6:
-        return NEXUS_6, NEXUS_6_CONFIG
+        return NEXUS_6, args.current_path + NEXUS_6_CONFIG
     if device == NEXUS_6_2:
-        return NEXUS_6_2, NEXUS_6_2_CONFIG
+        return NEXUS_6_2, args.current_path + NEXUS_6_2_CONFIG
     elif device == NEXUS_5:
-        return NEXUS_5, NEXUS_5_CONFIG
+        return NEXUS_5, args.current_path + NEXUS_5_CONFIG
     elif device == MAC:
-        return MAC, MAC_CONFIG
+        return MAC, args.current_path + MAC_CONFIG
     elif device == NEXUS_6_CHROMIUM:
-        return NEXUS_6_CHROMIUM, NEXUS_6_CHROMIUM_CONFIG
+        return NEXUS_6_CHROMIUM, args.current_path + NEXUS_6_CHROMIUM_CONFIG
     elif device == NEXUS_6_2_CHROMIUM:
-        return NEXUS_6_2_CHROMIUM, NEXUS_6_2_CHROMIUM_CONFIG
+        return NEXUS_6_2_CHROMIUM, args.current_path + NEXUS_6_2_CHROMIUM_CONFIG
     elif device == UBUNTU:
-        return UBUNTU, UBUNTU_CONFIG
+        return UBUNTU, args.current_path + UBUNTU_CONFIG
     else:
         print 'available devices: {0}, {1}, {2}, {3}, {4}, {5}'.format(NEXUS_6, NEXUS_6_2, NEXUS_5, NEXUS_6_CHROMIUM, NEXUS_6_2_CHROMIUM, MAC, UBUNTU)
         exit()
@@ -330,14 +388,15 @@ if __name__ == '__main__':
     parser = ArgumentParser()
     parser.add_argument('pages_file')
     parser.add_argument('num_repetitions', type=int)
-    parser.add_argument('--output-dir', default='.')
+    parser.add_argument('output_dir')
     parser.add_argument('--use-caching-proxy', default=False, action='store_true')
-    parser.add_argument('--start-measurements', default=False, action='store_true')
+    parser.add_argument('--start-measurements', default=None, choices=[ 'tcpdump', 'cpu', 'both' ])
     parser.add_argument('--use-device', default=NEXUS_6_2)
     parser.add_argument('--disable-tracing', default=False, action='store_true')
     parser.add_argument('--record-content', default=False, action='store_true')
     parser.add_argument('--collect-console', default=False, action='store_true')
     parser.add_argument('--collect-tracing', default=False, action='store_true')
     parser.add_argument('--take-screenshots', default=False, action='store_true')
+    parser.add_argument('--current-path', default='.')
     args = parser.parse_args()
     main(args.pages_file, args.num_repetitions, args.output_dir, args.use_caching_proxy, args.start_measurements, args.use_device, args.disable_tracing, args.record_content)

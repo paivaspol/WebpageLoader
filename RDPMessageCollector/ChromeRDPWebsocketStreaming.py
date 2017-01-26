@@ -12,7 +12,7 @@ PARAMS = 'params'
 REQUEST_ID = 'requestId'
 TIMESTAMP = 'timestamp'
 
-WAIT = 1.0
+WAIT = 1.5
 
 HTTP_PREFIX = 'http://'
 HTTPS_PREFIX = 'https://'
@@ -47,7 +47,7 @@ class ChromeRDPWebsocketStreaming(object):
 
         self.url = target_url       # The URL to navigate to.
         self.collect_console = collect_console
-        self.collect_tracing = False # Never start tracing.
+        self.collect_tracing = collect_tracing # Never start tracing.
         self.callback_on_network_event = callback_on_network_event
         self.callback_page_done = callback_page_done    # The callback method
         self.user_agent = user_agent_str
@@ -106,15 +106,16 @@ class ChromeRDPWebsocketStreaming(object):
             self.domContentEventFiredMs is not None and \
             self.loadEventFiredMs is not None and \
             (not self.collect_tracing or \
-            (self.collect_tracing and self.tracingCollectionCompleted)):
-            self.disable_network_tracking(self.ws)
-            self.disable_page_tracking(self.ws)
-            if self.collect_console:
-                self.disable_console_tracking(self.ws)
-            #if self.collect_tracing:
-            #    self.stop_trace_collection(self.ws)
-            print 'Start time {0}, Load completed: {1}'.format(self.originalRequestMs, self.loadEventFiredMs)
-            self.callback_page_done(self)
+            (self.collect_tracing and self.tracingCollectionCompleted)) and \
+            self.callback_page_done is not None:
+                self.disable_network_tracking(self.ws)
+                self.disable_page_tracking(self.ws)
+                if self.collect_console:
+                    self.disable_console_tracking(self.ws)
+                #if self.collect_tracing:
+                #    self.stop_trace_collection(self.ws)
+                print 'Start time {0}, Load completed: {1}'.format(self.originalRequestMs, self.loadEventFiredMs)
+                self.callback_page_done(self)
 
     def on_error(self, ws, error):
         '''
@@ -148,7 +149,7 @@ class ChromeRDPWebsocketStreaming(object):
         self.clear_cache(self.ws)
         
         # self.enable_trace_collection(self.ws)
-        navigation_utils.navigate_to_page(self.ws, 'about:blank')
+        # navigation_utils.navigate_to_page(self.ws, 'about:blank')
         sleep(WAIT)
 
         if self.collect_tracing:
@@ -324,9 +325,7 @@ class ChromeRDPWebsocketStreaming(object):
         '''
         Enables the tracing collection.
         '''
-        #enable_trace_collection = { "id": 9, 'method': 'Tracing.start' }
         enable_trace_collection = { "id": 9, 'method': 'Tracing.start', 'params': { 'categories': 'devtools.timeline, disabled-by-default-devtools.timeline, disabled-by-default-devtools.screenshot', "options": "sampling-frequency=10000" } }
-        # enable_trace_collection = { 'id': 4, 'method': 'Timeline.start' }
         debug_connection.send(json.dumps(enable_trace_collection))
         self.tracing_started = True
         print 'Enabled trace collection'

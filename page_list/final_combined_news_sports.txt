@@ -1,19 +1,18 @@
-http://abcnews.go.com/ http://abcnews.go.com/
 http://android.livescore.com/ http://android.livescore.com/
+http://abcnews.go.com/ http://abcnews.go.com/
 http://fortune.com/ http://fortune.com/
 http://m.accuweather.com/ http://m.accuweather.com/
 http://m.foxnews.com/ http://m.foxnews.com/
 http://m.navbharattimes.indiatimes.com/ http://m.navbharattimes.indiatimes.com/
 http://mobile.nytimes.com/ http://mobile.nytimes.com/
 http://mobile.reuters.com/ http://mobile.reuters.com/
-http://money.cnn.com/ http://money.cnn.com/
 http://m.shutterstock.com/ http://m.shutterstock.com/
 http://m.timesofindia.com/ http://m.timesofindia.com/
 http://nypost.com/ http://nypost.com/
 https://m.reddit.com/ https://m.reddit.com/
 https://news.google.com/ https://news.google.com/
 http://sports.yahoo.com/ http://sports.yahoo.com/
-https://weather.com/ https://weather.com/
+# https://weather.com/ https://weather.com/
 https://www.nhl.com/ https://www.nhl.com/
 https://www.theguardian.com/us https://www.theguardian.com/us
 https://www.wunderground.com/ https://www.wunderground.com/
@@ -27,24 +26,22 @@ http://www.cbc.ca/beta/news http://www.cbc.ca/beta/news
 http://www.cbsnews.com/ http://www.cbsnews.com/
 http://www.cbssports.com/ http://www.cbssports.com/
 http://www.cnbc.com/ http://www.cnbc.com/
-http://www.cnn.com/ http://www.cnn.com/
 http://www.cricbuzz.com/ http://m.cricbuzz.com/
 http://www.deadspin.com/ http://deadspin.com/
-http://www.eenadu.net/ http://www.eenadu.net/
 http://www.espn.com/ http://www.espn.com/
 http://www.espn.com/nfl/ http://www.espn.com/nfl/
 http://www.espncricinfo.com/ http://www.espncricinfo.com/
-http://www.espnfc.us/ http://www.espnfc.us/
+# http://www.espnfc.us/ http://www.espnfc.us/
 http://www.espn.go.com/mlb/ http://www.espn.com/mlb/
 http://www.eurosport.com/ http://www.eurosport.com/
-http://www.fifa.com/ http://www.fifa.com/
+http://www.fifa.com/ http://m.fifa.com/index.html
 http://www.filgoal.com/ http://mobile.filgoal.com/
 http://www.flashscore.com/ http://www.flashscore.com/
 http://www.forbes.com/forbes/welcome/ http://www.forbes.com/forbes/welcome/
 http://www.formula1.com/ http://www.formula1.com/
 http://www.foxsports.com/ http://www.foxsports.com/
 http://www.hattrick.org/ https://m.hattrick.org/
-http://www.letour.fr/ http://www.letour.fr/us/
+# http://www.letour.fr/ http://www.letour.fr/us/
 http://www.livescore.com/ http://www.livescore.com/
 http://www.manutd.com/ http://www.manutd.com/
 http://www.milb.com/ http://m.milb.com/
@@ -53,7 +50,6 @@ http://www.nationalgeographic.com/ http://www.nationalgeographic.com/
 http://www.nba.com/ http://www.nba.com/
 http://www.nbcsports.com/ http://www.nbcsports.com/
 http://www.news.com.au/ http://www.news.com.au/
-http://www.nfl.com/ http://www.nfl.com/
 http://www.redbull.com/ http://www.redbull.com/us/en
 http://www.rivals.com/ https://n.rivals.com/
 http://www.runnersworld.com/ http://www.runnersworld.com/

@@ -98,14 +98,27 @@ def toggle_openvpn_button(device_configuration):
     subprocess.call(cmd, shell=True)
     sleep(1)
 
+def is_connected_to_vpn(device_configuration):
+    cmd = 'adb -s {0} shell ifconfig'.format(device_configuration[DEVICE_ID])
+    proc = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    stdout, stderr = proc.communicate()
+    return 'tun0' in stdout
+
 def start_tcpdump(device_configuration):
     '''
     Starts tcpdump on the phone.
     '''
     tcpdump_started = False
     while not tcpdump_started:
-        cmd_base = 'adb -s {0} shell \'su -c \'/tcpdump -i wlan0 -n -s 0 -w {1}\'\''
-        cmd = cmd_base.format(device_configuration[DEVICE_ID], PCAP_DIRECTORY)
+        # cmd_base = 'adb -s {0} shell \'su -c \'/tcpdump -i wlan0 -n -s 0 -w {1}\'\''
+        interface = 'wlan0'
+        cmd_base = 'adb -s {0} shell ifconfig'.format(device_configuration[DEVICE_ID])
+        proc = subprocess.Popen(cmd_base, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        stdout, stderr = proc.communicate()
+        if 'rndis0' in stdout:
+            interface = 'rndis0'
+        cmd_base = 'adb -s {0} shell \'su -c \'/tcpdump -i {1} -n -s 0 -w {2}\'\''
+        cmd = cmd_base.format(device_configuration[DEVICE_ID], interface, PCAP_DIRECTORY)
         retval = subprocess.Popen(cmd, shell=True)
         get_tcp_dump_process = 'adb -s {0} shell \'su -c \'ps | grep tcpdump\'\''.format(device_configuration[DEVICE_ID])
         result = subprocess.check_call(get_tcp_dump_process, shell=True)
@@ -120,7 +133,8 @@ def stop_tcpdump(device_configuration, sleep_before_kill=True):
     if sleep_before_kill:
         print 'Sleeping before killing tcpdump.'
         sleep(45) # Give sometime for tcpdump to be finished.
-    cmd_base = 'adb -s {0} shell ps | grep tcpdump | awk \'{{ print $2 }}\' | xargs adb -s {0} shell "su -c kill -9"'
+    # cmd_base = 'adb -s {0} shell ps | grep tcpdump | awk \'{{ print $2 }}\' | xargs adb -s {0} shell "su -c kill -9"'
+    cmd_base = 'adb -s {0} shell ps | grep tcpdump | awk \'{{ print $1 }}\' | xargs adb -s {0} shell "su -c kill -9"' # with busybox installed
     cmd = cmd_base.format(device_configuration[DEVICE_ID])
     # print cmd
     return subprocess.Popen(cmd, shell=True)

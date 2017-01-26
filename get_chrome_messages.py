@@ -16,7 +16,6 @@ from argparse import ArgumentParser
 from ConfigParser import ConfigParser   # Parsing configuration file.
 from bs4 import BeautifulSoup # Beautify HTML
 from time import sleep
-from RDPMessageCollector.ChromeRDPWebsocket import ChromeRDPWebsocket # The websocket
 from RDPMessageCollector.ChromeRDPWebsocketStreaming import ChromeRDPWebsocketStreaming # The websocket
 from RDPMessageCollector.ChromeRDPWithoutTracking import ChromeRDPWithoutTracing
 
@@ -40,6 +39,7 @@ def main(device_configuration, url, disable_tracing, reload_page):
     while not got_debugging_url:
         try:
             debugging_url, page_id = chrome_utils.get_debugging_url(device_configuration)
+            print 'Debugging URL: ' + debugging_url + ' page_id: ' + page_id
             got_debugging_url = True
         except (requests.exceptions.ConnectionError, KeyError) as e:
             pass
@@ -64,19 +64,22 @@ def main(device_configuration, url, disable_tracing, reload_page):
         # First, remove the network file, if it exists
         escaped_url = common_module.escape_page(url)
         network_filename = os.path.join(output_directory, 'network_' + escaped_url)
-        print 'network_filename: ' + network_filename
         if os.path.exists(network_filename):
-            print 'Removing ' + network_filename
             os.remove(network_filename)
+        tracing_filename = os.path.join(output_directory, 'tracing_' + escaped_url)
+        if os.path.exists(tracing_filename):
+            os.remove(tracing_filename)
 
-        debugging_socket = ChromeRDPWebsocketStreaming(debugging_url, url, device_configuration, user_agent_str, args.collect_console, args.collect_tracing, callback_on_received_event, callback_on_page_done_streaming)
         if args.get_dependency_baseline:
+            debugging_socket = ChromeRDPWebsocketStreaming(debugging_url, url, device_configuration, user_agent_str, args.collect_console, args.collect_tracing, callback_on_received_event, None)
             def timeout_handler(a, b):
                 callback_on_page_done_streaming(debugging_socket)
                 sys.exit(0)
 
             print 'Setting SIGTERM handler'
             signal.signal(signal.SIGTERM, timeout_handler)
+        else:
+            debugging_socket = ChromeRDPWebsocketStreaming(debugging_url, url, device_configuration, user_agent_str, args.collect_console, args.collect_tracing, callback_on_received_event, callback_on_page_done_streaming)
         debugging_socket.start()
     
 def output_cpu_running_chrome(output_directory, cpu_id):
@@ -112,19 +115,19 @@ def callback_on_received_event(debugging_socket, network_message, network_messag
     if 'method' in network_message and network_message['method'].startswith('Network'):
         network_filename = os.path.join(base_dir, 'network_' + final_url)
         with open(network_filename, 'ab') as output_file:
-            output_file.write('{0}\n'.format(json.dumps(network_message_string)))
+            output_file.write('{0}\n'.format(network_message_string))
     elif 'method' in network_message and network_message['method'].startswith('Console'):
         network_filename = os.path.join(base_dir, 'console_' + final_url)
         with open(network_filename, 'ab') as output_file:
-            output_file.write('{0}\n'.format(json.dumps(network_message_string)))
+            output_file.write('{0}\n'.format(network_message_string))
     elif 'method' in network_message and network_message['method'].startswith('Tracing'):
         tracing_filename = os.path.join(base_dir, 'tracing_' + final_url)
         with open(tracing_filename, 'ab') as output_file:
-            output_file.write('{0}\n'.format(json.dumps(network_message_string)))
+            output_file.write('{0}\n'.format(network_message_string))
     else:
         filename = os.path.join(base_dir, 'unknown_' + final_url)
         with open(filename, 'ab') as output_file:
-            output_file.write('{0}\n'.format(json.dumps(network_message_string)))
+            output_file.write('{0}\n'.format(network_message_string))
 
 def callback_on_page_done_streaming(debugging_socket):
     debugging_socket.close_connection()
@@ -142,10 +145,11 @@ def callback_on_page_done_streaming(debugging_socket):
     # print 'output dir: ' + base_dir
     print 'Load time: ' + str((start_time, end_time)) + ' ' + str((end_time - start_time))
     write_page_start_end_time(final_url, base_dir, start_time, end_time, -1, -1)
-    navigation_utils.navigate_to_page(new_debugging_websocket, 'about:blank')
-    sleep(0.5)
+    # sleep(0.5)
+    # navigation_utils.navigate_to_page(new_debugging_websocket, 'about:blank')
+    # sleep(0.5)
     new_debugging_websocket.close()
-    # chrome_utils.close_tab(debugging_socket.device_configuration, debugging_socket.device_configuration['page_id'])
+    chrome_utils.close_tab(debugging_socket.device_configuration, debugging_socket.device_configuration['page_id'])
 
 def beautify_html(original_html):
     return BeautifulSoup(original_html, 'html.parser').prettify().encode('utf-8')
@@ -192,7 +196,6 @@ def clear_directory(directory):
     for f in files:
         if os.isfile(f):
             os.remove(os.path.join(directory, f))
-
 
 if __name__ == '__main__':
     argparser = ArgumentParser()
