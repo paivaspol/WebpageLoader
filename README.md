@@ -37,6 +37,3 @@ Available devices:
 * mac
 * Nexus\_6
 * Nexus\_6\_2
-
-#### Resource collection
-
