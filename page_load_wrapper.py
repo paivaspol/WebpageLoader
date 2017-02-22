@@ -39,7 +39,7 @@ PAUSE = 2
 BUFFER_FOR_TRACE = 5
 TRY_LIMIT = 5
 
-def main(pages_file, num_repetitions, output_dir, use_caching_proxy, start_measurements, device, disable_tracing, record_contents):
+def main(pages_file, num_repetitions, output_dir, start_measurements, device, disable_tracing, record_contents):
     signal.signal(signal.SIGALRM, timeout_handler) # Setup the timeout handler
     pages = common_module.get_pages(pages_file)
     if start_measurements and not disable_tracing:
@@ -53,15 +53,6 @@ def main(pages_file, num_repetitions, output_dir, use_caching_proxy, start_measu
             initialize_browser(device)
             page = pages.pop(0)
             print 'page: ' + page
-            if use_caching_proxy:
-                try:
-                    # Special Case for Populating the proxy cache.
-                    signal.alarm(TIMEOUT)
-                    load_page(page, -1, output_dir, False, device, True)
-                    signal.alarm(0) # Reset the alarm
-                except PageLoadException as e:
-                    print 'Timeout for {0}-th load. Append to end of queue...'.format(i)
-                    pages.append(page)
             i = 0
             while i < num_repetitions:
                 try:
@@ -327,7 +318,7 @@ def load_page(raw_line, run_index, output_dir, start_measurements, device, disab
     device, device_config = get_device_config(device)
 
     line = raw_line.strip()
-    cmd = 'python /home/vaspol/Research/MobileWebOptimization/WebpageLoader/get_chrome_messages.py {1} {2} {0} --output-dir {3}'.format(line, device_config, device, output_dir_run) 
+    cmd = 'python get_chrome_messages.py {1} {2} {0} --output-dir {3}'.format(line, device_config, device, output_dir_run) 
     if disable_tracing:
         cmd += ' --disable-tracing'
     if record_contents:
@@ -389,7 +380,6 @@ if __name__ == '__main__':
     parser.add_argument('pages_file')
     parser.add_argument('num_repetitions', type=int)
     parser.add_argument('output_dir')
-    parser.add_argument('--use-caching-proxy', default=False, action='store_true')
     parser.add_argument('--start-measurements', default=None, choices=[ 'tcpdump', 'cpu', 'both' ])
     parser.add_argument('--use-device', default=NEXUS_6_2)
     parser.add_argument('--disable-tracing', default=False, action='store_true')
@@ -399,4 +389,4 @@ if __name__ == '__main__':
     parser.add_argument('--take-screenshots', default=False, action='store_true')
     parser.add_argument('--current-path', default='.')
     args = parser.parse_args()
-    main(args.pages_file, args.num_repetitions, args.output_dir, args.use_caching_proxy, args.start_measurements, args.use_device, args.disable_tracing, args.record_content)
+    main(args.pages_file, args.num_repetitions, args.output_dir, args.start_measurements, args.use_device, args.disable_tracing, args.record_content)

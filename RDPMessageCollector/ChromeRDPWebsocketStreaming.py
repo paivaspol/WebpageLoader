@@ -234,12 +234,12 @@ class ChromeRDPWebsocketStreaming(object):
             cfg["device"]["screen"]["vertical"]["height"])
 
     def set_touch_mode(self, conn):
-        conn.send(json.dumps({"id": 23, "method": "Page.setTouchEmulationEnabled", "params": {"enabled": True}}))
+        conn.send(json.dumps({"id": 23, "method": "Emulation.setTouchEmulationEnabled", "params": {"enabled": True}}))
         print 'enabled touch mode'
         # sleep(WAIT)
 
     def set_device_metrics_override(self, conn, width, height):
-        msg = { "id": 235, "method": "Page.setDeviceMetricsOverride", "params": {
+        msg = { "id": 235, "method": "Emulation.setDeviceMetricsOverride", "params": {
             "width": width, "height": height, "fontScaleFactor": 1, "fitWindow": False}}
         conn.send(json.dumps(msg))
         print 'set device metrics override'
