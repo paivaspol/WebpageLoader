@@ -161,9 +161,6 @@ def load_pages_with_measurement_and_tracing_disabled(pages, output_dir, num_repe
                 # Kill the browser and append a page.
                 chrome_utils.close_all_tabs(device_config_obj)
                 initialize_browser(device)
-                if args.take_screenshots:
-                    phone_connection_utils.stop_taking_screenshopts(device_config_obj)
-
                 if tried_counter[page] <= TRY_LIMIT:
                     pages.append(page)
                 else:
@@ -306,14 +303,6 @@ def load_page(raw_line, run_index, output_dir, start_measurements, device, disab
     if not os.path.exists(output_dir_run):
         os.mkdir(output_dir_run)
 
-    if args.take_screenshots:
-        if not os.path.exists(os.path.join(output_dir_run, 'screenshots')):
-            os.mkdir(os.path.join(output_dir_run, 'screenshots'))
-        destination = os.path.join(output_dir_run, 'screenshots', common_module.escape_page(raw_line.strip()))
-        if not os.path.exists(destination):
-            os.mkdir(destination)
-        phone_connection_utils.start_taking_screenshot_every_x_s(device_config_obj, 0.1, destination)
-    
     # Get the device configuration
     device, device_config = get_device_config(device)
 
@@ -330,9 +319,6 @@ def load_page(raw_line, run_index, output_dir, start_measurements, device, disab
     # if run_index > 0:
     #     cmd += ' --reload-page'
     subprocess.Popen(cmd, shell=True).wait()
-
-    if args.take_screenshots:
-        phone_connection_utils.stop_taking_screenshots(device_config_obj)
 
 def bring_chrome_to_foreground(device):
     device, device_config = get_device_config(device)
@@ -381,12 +367,11 @@ if __name__ == '__main__':
     parser.add_argument('num_repetitions', type=int)
     parser.add_argument('output_dir')
     parser.add_argument('--start-measurements', default=None, choices=[ 'tcpdump', 'cpu', 'both' ])
-    parser.add_argument('--use-device', default=NEXUS_6_2)
+    parser.add_argument('--use-device', default=NEXUS_6_2_CHROMIUM)
     parser.add_argument('--disable-tracing', default=False, action='store_true')
     parser.add_argument('--record-content', default=False, action='store_true')
     parser.add_argument('--collect-console', default=False, action='store_true')
     parser.add_argument('--collect-tracing', default=False, action='store_true')
-    parser.add_argument('--take-screenshots', default=False, action='store_true')
     parser.add_argument('--current-path', default='.')
     args = parser.parse_args()
     main(args.pages_file, args.num_repetitions, args.output_dir, args.start_measurements, args.use_device, args.disable_tracing, args.record_content)

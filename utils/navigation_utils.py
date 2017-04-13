@@ -35,7 +35,8 @@ def set_user_agent(debug_connection, user_agent_str):
 def get_start_end_time_with_socket(ws):
     start_time = None
     end_time = None
-    while start_time is None or end_time is None or (start_time is not None and start_time <= 0) or (end_time is not None and end_time <= 0):
+    dom_content_loaded = None
+    while start_time is None or end_time is None or dom_content_loaded is None or (start_time is not None and start_time <= 0) or (end_time is not None and end_time <= 0) or (dom_content_loaded is not None and dom_content_loaded <= 0):
         try:
             # print 'navigation starts: ' + str(navigation_starts)
             if start_time is None or start_time <= 0:
@@ -49,9 +50,14 @@ def get_start_end_time_with_socket(ws):
                 ws.send(load_event_ends)
                 load_ends = json.loads(ws.recv())
                 end_time = int(load_ends['result']['result']['value'])
+            if dom_content_loaded is None or dom_content_loaded <= 0:
+                load_event_ends = json.dumps({ "id": 6, "method": "Runtime.evaluate", "params": { "expression": "performance.timing.domContentLoadedEventEnd", "returnByValue": True }})
+                ws.send(load_event_ends)
+                load_ends = json.loads(ws.recv())
+                dom_content_loaded = int(load_ends['result']['result']['value'])
         except Exception as e:
             pass
-    return start_time, end_time
+    return start_time, end_time, dom_content_loaded
 
 def get_request_body(ws, request_id):
     '''

@@ -59,7 +59,7 @@ def main(device_configuration, url, disable_tracing, reload_page):
         print str((start_time, end_time)) + ' ' + str((end_time - start_time))
         escaped_url = common_module.escape_page(url)
         print 'output_directory: ' + output_directory
-        write_page_start_end_time(escaped_url, output_directory, start_time, end_time)
+        write_page_start_end_time(escaped_url, output_directory, start_time, end_time, -1)
     else:
         # First, remove the network file, if it exists
         escaped_url = common_module.escape_page(url)
@@ -141,10 +141,10 @@ def callback_on_page_done_streaming(debugging_socket):
     
     new_debugging_websocket = websocket.create_connection(debugging_url)
     # Get the start and end time of the execution
-    start_time, end_time = navigation_utils.get_start_end_time_with_socket(new_debugging_websocket)
+    start_time, end_time, dom_content_loaded = navigation_utils.get_start_end_time_with_socket(new_debugging_websocket)
     # print 'output dir: ' + base_dir
     print 'Load time: ' + str((start_time, end_time)) + ' ' + str((end_time - start_time))
-    write_page_start_end_time(final_url, base_dir, start_time, end_time, -1, -1)
+    write_page_start_end_time(final_url, base_dir, start_time, end_time, dom_content_loaded, -1, -1)
     # sleep(0.5)
     # navigation_utils.navigate_to_page(new_debugging_websocket, 'about:blank')
     # sleep(0.5)
@@ -154,10 +154,10 @@ def callback_on_page_done_streaming(debugging_socket):
 def beautify_html(original_html):
     return BeautifulSoup(original_html, 'html.parser').prettify().encode('utf-8')
 
-def write_page_start_end_time(escaped_url, base_dir, start_time, end_time, original_request_ts=-1, load_event_ts=-1):
+def write_page_start_end_time(escaped_url, base_dir, start_time, end_time, dom_content_loaded, original_request_ts=-1, load_event_ts=-1):
     start_end_time_filename = os.path.join(base_dir, 'start_end_time_' + escaped_url)
     with open(start_end_time_filename, 'wb') as output_file:
-        output_file.write('{0} {1} {2} {3} {4}\n'.format(escaped_url, start_time, end_time, original_request_ts, load_event_ts))
+        output_file.write('{0} {1} {2} {3} {4} {5}\n'.format(escaped_url, start_time, end_time, original_request_ts, load_event_ts, dom_content_loaded))
 
 def output_response_body(debugging_websocket, request_ids, output_dir):
     '''

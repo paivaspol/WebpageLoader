@@ -65,7 +65,7 @@ def main(config_filename, pages, iterations, device_name, mode, output_dir):
                     break
 
             if check_proxy_running_counter >= MAX_TRIES:
-                failed_pages.append(page)
+                failed_pages.append(page_tuple)
                 stop_proxy(mode, page, current_time, replay_configurations)
                 while not check_proxy_stopped(replay_configurations, mode):
                     sleep(1)
@@ -117,12 +117,18 @@ def main(config_filename, pages, iterations, device_name, mode, output_dir):
             done(replay_configurations)
 
         print 'Failed pages: ' + str(failed_pages)
+        output_failed_pages(output_dir, failed_pages)
 
     except KeyboardInterrupt as e:
         print 'Pages: ' + str(pages)
         print 'Failed pages: ' + str(failed_pages)
         print 'Completed pages: ' + str(completed_pages)
         exit(0)
+
+def output_failed_pages(output_dir, failed_pages):
+    with open(os.path.join(output_dir, 'failed_pages'), 'wb') as output_file:
+        for p in failed_pages:
+            output_file.write(p[0] + ' ' + p[1] + '\n')
 
 def start_vpn(device_info):
     phone_connection_utils.bring_openvpn_connect_foreground(device_info)
@@ -224,6 +230,7 @@ def stop_proxy(mode, page, time, replay_configurations):
     '''
     if mode == 'record':
         server_mode = 'stop_recording'
+        sleep(10)
     elif mode == 'replay' or mode == 'per_packet_delay_replay':
         server_mode = 'stop_proxy'
     elif mode == 'delay_replay':

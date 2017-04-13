@@ -325,7 +325,7 @@ class ChromeRDPWebsocketStreaming(object):
         '''
         Enables the tracing collection.
         '''
-        enable_trace_collection = { "id": 9, 'method': 'Tracing.start', 'params': { 'categories': 'devtools.timeline, disabled-by-default-devtools.timeline, disabled-by-default-devtools.screenshot', "options": "sampling-frequency=10000" } }
+        enable_trace_collection = { "id": 9, 'method': 'Tracing.start', 'params': { 'categories': 'blink, devtools.timeline, disabled-by-default-devtools.timeline, disabled-by-default-devtools.screenshot', "options": "sampling-frequency=10000" } }
         debug_connection.send(json.dumps(enable_trace_collection))
         self.tracing_started = True
         print 'Enabled trace collection'
