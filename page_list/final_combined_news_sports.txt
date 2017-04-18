@@ -58,7 +58,7 @@ http://www.scout.com/ http://www.scout.com/
 http://www.si.com/ http://www.si.com/
 http://www.skysports.com/football/ http://www.skysports.com/football
 http://www.smh.com.au/ http://www.smh.com.au/
-http://www.soccerway.com/ http://www.soccerway.com/
+http://www.soccerway.com/ http://us.soccerway.com/
 http://www.sports.yahoo.com/mlb/ http://sports.yahoo.com/mlb/
 http://www.strava.com/ https://www.strava.com/
 http://www.thehindu.com/ http://www.thehindu.com/
