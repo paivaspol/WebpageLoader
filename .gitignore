@@ -1,3 +1,6 @@
 *.pyc
 *.txt
 *.com
+
+experiments/*
+openvpn-status.log
