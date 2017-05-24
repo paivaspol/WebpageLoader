@@ -30,7 +30,7 @@ def escape_page(url):
 
 class ChromeRDPWebsocketStreaming(object):
 
-    def __init__(self, url, target_url, device_configuration, user_agent_str, collect_console, collect_tracing, callback_on_network_event, callback_page_done):
+    def __init__(self, url, target_url, device_configuration, user_agent_str, collect_console, collect_tracing, callback_on_network_event, callback_page_done, preserve_cache):
         '''
         Initialize the object. 
         url - the websocket url
@@ -53,6 +53,7 @@ class ChromeRDPWebsocketStreaming(object):
         self.user_agent = user_agent_str
         self.device_configuration = device_configuration # The device configuration
         self.debugging_url = url
+        self.preserve_cache = preserve_cache
         self.ws = websocket.WebSocketApp(url,\
                                         on_message = self.on_message,\
                                         on_error = self.on_error,\
@@ -146,7 +147,8 @@ class ChromeRDPWebsocketStreaming(object):
         if os.getenv("EMULATE_DEVICE", "") != "":
             self.emulate_device(self.ws, os.getenv("EMULATE_DEVICE"))
 
-        self.clear_cache(self.ws)
+        if not self.preserve_cache:
+            self.clear_cache(self.ws)
         
         # self.enable_trace_collection(self.ws)
         # navigation_utils.navigate_to_page(self.ws, 'about:blank')
@@ -326,6 +328,8 @@ class ChromeRDPWebsocketStreaming(object):
         Enables the tracing collection.
         '''
         enable_trace_collection = { "id": 9, 'method': 'Tracing.start', 'params': { 'categories': 'blink, devtools.timeline, disabled-by-default-devtools.timeline, disabled-by-default-devtools.screenshot', "options": "sampling-frequency=10000" } }
+        # enable_trace_collection = { "id": 9, 'method': 'Tracing.start', 'params': { 'categories': '-*, toplevel, loading, blink, devtools.timeline, disabled-by-default-devtools.timeline, disabled-by-default-devtools.timeline.frame, disabled-by-default-devtools.screenshot', "options": "sampling-frequency=10" } }
+        # enable_trace_collection = { "id": 9, 'method': 'Tracing.start', 'params': { 'categories': 'disabled-by-default-devtools.screenshot', "options": "sampling-frequency=1000000" } }
         debug_connection.send(json.dumps(enable_trace_collection))
         self.tracing_started = True
         print 'Enabled trace collection'

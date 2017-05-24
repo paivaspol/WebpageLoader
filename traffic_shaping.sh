@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -e
+
 # The Ultimate Setup For Your Internet Connection At Home
 # 
 #

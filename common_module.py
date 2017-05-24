@@ -204,6 +204,19 @@ def start_tcpdump(device, running_path='.'):
     start_tcpdump_command = 'python ./utils/start_tcpdump.py {0} {1}'.format(device_config, device)
     subprocess.Popen(start_tcpdump_command, shell=True).wait()
 
+def start_screen_recording(device, running_path='.'):
+    device, device_config, _ = get_device_config(device, running_path=running_path)
+    start_screen_capture_command = 'python ./utils/start_screen_capture.py {0} {1}'.format(device_config, device)
+    subprocess.Popen(start_screen_capture_command, shell=True).wait()
+
+def stop_screen_recording(line, device, output_dir_run='.', running_path='.'):
+    url = escape_page(line)
+    device, device_config, _ = get_device_config(device, running_path=running_path)
+    output_directory = os.path.join(output_dir_run, url)
+    screen_record_filename = os.path.join(output_directory, 'screen_record.mp4')
+    stop_screen_capture = 'python ./utils/stop_screen_capture.py {0} {1} --output-dir {2}'.format(device_config, device, screen_record_filename)
+    subprocess.Popen(stop_screen_capture, shell=True).wait()
+
 def start_tcpdump_and_cpu_measurement(device, cpu_utilization_output_filename, running_path='.'):
     start_cpu_measurements(device, cpu_utilization_output_filename, running_path=running_path)
     start_tcpdump(device, running_path)

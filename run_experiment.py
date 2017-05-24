@@ -12,6 +12,7 @@ import time
 
 from utils import config as config_util
 from utils import script_runner
+from utils import phone_connection_utils as pcu
 
 REPLAY_ENV_PATH = os.path.join('/home/vaspol/Research/MobileWebOptimization/page_load_setup/mahimahi/proxy_running_scripts', 'run_mahimahi_proxy.py')
 
@@ -60,6 +61,12 @@ def run_experiment(config_filename):
 
     populate_metadata(config_filename, config)
     write_experiment_status(config_filename, OK)
+    ship_data(config[config_util.EXPERIMENT_OUTPUT_DIR])
+
+def ship_data(exp_output_dir):
+    dst = 'vault:/mnt/z/home/vaspol/MobileWebOptimization/results/fresh_experiments/'
+    command = 'scp -q -r {0} {1}'.format(exp_output_dir, dst)
+    subprocess.call(command.split())
 
 def write_experiment_status(config_filename, status, reason=''):
     with open(RUN_LOG_FILENAME, 'ab') as output_file:
@@ -70,6 +77,7 @@ def write_experiment_status(config_filename, status, reason=''):
 
 def run_replay_environment(config):
     # First, write the necessary replay env configs.
+    binary_dir = config[config_util.BINARY_DIR] if config_util.BINARY_DIR in config else '/home/vaspol/Research/MobileWebOptimization/page_load_setup/build'
     replay_env_conf_path = config_util.write_replay_env_config(config)
 
     # Start the replay environment as a daemon on one process.
@@ -93,9 +101,16 @@ def run_replay_driver(config):
     replay_driver_conf = config[config_util.REPLAY_DRIVER_CONF]
     page_to_timestamp = config[config_util.PAGE_TO_TIMESTAMP_FILE]
     with_dependencies = config[config_util.WITH_DEPENDENCIES]
-    command = 'python mahimahi_page_script.py {0} {1} Nexus_6_2_chromium {2} per_packet_delay_replay {3} --use-openvpn --pac-file-location http://{4}/config_testing.pac --page-time-mapping {5} --fetch-server-side-logs --start-measurements both --collect-tracing --collect-console'.format(page_list, replay_driver_conf, iterations, experiment_output_dir, replay_hostname, page_to_timestamp)
+    record_screen = config[config_util.RECORD_SCREEN]
+    preserve_cache = config[config_util.PRESERVE_CACHE]
+    http_version = config[config_util.HTTP_VERSION]
+    command = 'python mahimahi_page_script.py {0} {1} Nexus_6_2_chromium {2} per_packet_delay_replay {3} --use-openvpn --pac-file-location http://{4}/config_testing.pac --page-time-mapping {5} --http-version {6} --fetch-server-side-logs --start-measurements both --collect-tracing --collect-console'.format(page_list, replay_driver_conf, iterations, experiment_output_dir, replay_hostname, page_to_timestamp, http_version)
     if with_dependencies != 'true':
         command += ' --without-dependencies'
+    if record_screen == 'true':
+        command += ' --record-screen'
+    if preserve_cache == 'true':
+        command += ' --preserve-cache'
     proc = subprocess.Popen(command, shell=True, preexec_fn=os.setsid)
     return proc
 
@@ -133,7 +148,6 @@ def cleanup():
             p.kill()
             os.killpg(os.getpgid(p.pid), signal.SIGTERM)
             time.sleep(.5)
-
     started_processes = [ ]
 
 if __name__ == '__main__':
@@ -145,6 +159,14 @@ if __name__ == '__main__':
         os.remove(RUN_LOG_FILENAME)
     jobs = get_jobs(args.config_file_list) # Each config file is one experiment
     print 'Jobs: ' + str(jobs)
+    
+    # Check if phone is unlock.
+    # phone_status = pcu.get_phone_status()
+    # if phone_status == pcu.SCREEN_OFF_AND_LOCKED or \
+    #     phone_status == pcu.SCREEN_ON_BUT_LOCKED:
+    #     # Need to turn on the screen and unlock phone.
+    #     pcu.unlock_phone()
+
     for job in jobs:
         run_experiment(job)
         time.sleep(7) # Sleep for 7s before moving on to the next job.

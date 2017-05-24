@@ -19,6 +19,10 @@ PAGE_LIST = 'page-list'
 EXPERIMENT_OUTPUT_DIR = 'experiment-output-dir'
 PAGE_TO_TIMESTAMP_FILE = 'page-to-timestamp-file'
 WITH_DEPENDENCIES = 'with-dependencies'
+BINARY_DIR = 'binary-dir'
+RECORD_SCREEN = 'record-screen'
+PRESERVE_CACHE = 'preserve-cache'
+HTTP_VERSION = 'http-version'
 
 # OPTIONAL FIELDS
 DESCRIPTION = 'description'
@@ -32,7 +36,18 @@ def parse(config_filename):
                 continue
             line = raw_line.strip().split(': ')
             result[line[0]] = line[1]
+    populate_optional_fields(result)
     return result
+
+def populate_optional_fields(config_dict):
+    optional_fields_vals = {
+            PRESERVE_CACHE: 'false', 
+            HTTP_VERSION: 2, 
+            RECORD_SCREEN: 'false'
+         }
+    for f, v in optional_fields_vals.iteritems():
+        if f not in config_dict:
+            config_dict[f] = v
 
 def check_mandatory_fields(config_dict):
     keys = [ DEPENDENCY_DIR, RECORD_DIR, REPLAY_DIR, DOWNLINK, UPLINK, \
@@ -52,7 +67,8 @@ def write_replay_env_config(configs):
     replay_env_filename = 'replay_env.conf'
     with open(replay_env_filename, 'wb') as replay_env:
         replay_env.write('[proxy_running_config]\n')
-        replay_env.write('build-prefix = /home/vaspol/Research/MobileWebOptimization/page_load_setup/build\n')
+        binary_dir = configs[BINARY_DIR] if BINARY_DIR in configs else '/home/vaspol/Research/MobileWebOptimization/page_load_setup/build'
+        replay_env.write('build-prefix = {0}\n'.format(binary_dir))
         replay_env.write('mm-proxyreplay = /bin/mm-proxyreplay\n')
         replay_env.write('mm-http1-proxyreplay = /bin/mm-http1-proxyreplay\n')
         replay_env.write('nghttpx_port = 3000\n')

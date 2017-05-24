@@ -7,6 +7,7 @@ from time import sleep
 from ConfigParser import ConfigParser
 
 PCAP_DIRECTORY = '/sdcard/Research/output.pcap'
+SCREEN_RECORD_DIR = '/sdcard/Research/page_load.mp4'
 RESULT_DIRECTORY = '../result/'
 
 DEVICE_ID = 'id'
@@ -104,6 +105,17 @@ def is_connected_to_vpn(device_configuration):
     stdout, stderr = proc.communicate()
     return 'tun0' in stdout
 
+def start_screen_recording(device_configuration):
+        # cmd_base = 'adb -s {0} shell \'su -c \'/tcpdump -i wlan0 -n -s 0 -w {1}\'\''
+    cmd = 'adb -s {0} shell screenrecord /sdcard/Research/page_load.mp4'.format(device_configuration[DEVICE_ID])
+    subprocess.Popen(cmd, shell=True)
+
+def end_screen_recording(device_configuration, sleep_before_kill=True):
+    # if sleep_before_kill:
+    #     sleep(3)
+    kill_process_on_phone('screenrecord', device_configuration[DEVICE_ID])
+    sleep(5)
+
 def start_tcpdump(device_configuration):
     '''
     Starts tcpdump on the phone.
@@ -134,16 +146,28 @@ def stop_tcpdump(device_configuration, sleep_before_kill=True):
         print 'Sleeping before killing tcpdump.'
         sleep(45) # Give sometime for tcpdump to be finished.
     # cmd_base = 'adb -s {0} shell ps | grep tcpdump | awk \'{{ print $2 }}\' | xargs adb -s {0} shell "su -c kill -9"'
-    cmd_base = 'adb -s {0} shell ps | grep tcpdump | awk \'{{ print $1 }}\' | xargs adb -s {0} shell "su -c kill -9"' # with busybox installed
-    cmd = cmd_base.format(device_configuration[DEVICE_ID])
+    # cmd_base = 'adb -s {0} shell ps | grep tcpdump | awk \'{{ print $1 }}\' | xargs adb -s {0} shell "su -c kill -9"' # with busybox installed
+    # cmd = cmd_base.format(device_configuration[DEVICE_ID])
+    # return subprocess.Popen(cmd, shell=True)
+    kill_process_on_phone('tcpdump', device_configuration[DEVICE_ID])
     # print cmd
-    return subprocess.Popen(cmd, shell=True)
+
+def kill_process_on_phone(process_name, device_id):
+    cmd_base = 'adb -s {0} shell ps | grep {1} | awk \'{{ print $1 }}\' | xargs adb -s {0} shell "su -c kill -2"' # with busybox installed
+    cmd = cmd_base.format(device_id, process_name)
+    subprocess.call(cmd, shell=True)
 
 def fetch_pcap(device_configuration, pcap_directory=PCAP_DIRECTORY, destination_directory=RESULT_DIRECTORY):
     '''
     Fetches the pcap file from the phone.
     '''
     fetch_file(device_configuration, pcap_directory, destination_directory, remove_file=True)
+
+def fetch_screen_record(device_configuration, screen_record_directory=SCREEN_RECORD_DIR, destination_directory=RESULT_DIRECTORY):
+    '''
+    Fetches the pcap file from the phone.
+    '''
+    fetch_file(device_configuration, screen_record_directory, destination_directory, remove_file=True)
 
 def fetch_cpu_measurement_file(device_configuration, measurement_dir, destination_directory):
     print 'Fetching CPU Measurement file...'
@@ -247,3 +271,28 @@ def stop_taking_screenshots(device_config):
         global index
         timer.cancel()
         index = 0
+
+SCREEN_OFF_AND_LOCKED = 0
+SCREEN_ON_BUT_LOCKED = 1
+SCREEN_ON_AND_UNLOCKED = 2
+def get_phone_status():
+    command = 'adb shell dumpsys power | grep \'mHolding\''
+    result = subprocess.check_output(command, shell=True)
+    splitted_lines = result.split('\n')
+    if 'true' in splitted_lines[0] and \
+        'true' in splitted_lines[1]:
+        return SCREEN_ON_AND_UNLOCKED
+    elif 'false' in splitted_lines[0] and \
+        'true' in splitted_lines[1]:
+        return SCREEN_ON_BUT_LOCKED
+    elif 'false' in splitted_lines[0] and \
+        'false' in splitted_lines[1]:
+        return SCREEN_OFF_AND_LOCKED
+
+def unlock_phone():
+    command = 'adb shell input keyevent 82'
+    subprocess.call(command.split())
+    command = 'adb shell input text 1111'
+    subprocess.call(command.split())
+    command = 'adb shell input keyevent 66'
+    subprocess.call(command.split())

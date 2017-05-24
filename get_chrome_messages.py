@@ -71,7 +71,7 @@ def main(device_configuration, url, disable_tracing, reload_page):
             os.remove(tracing_filename)
 
         if args.get_dependency_baseline:
-            debugging_socket = ChromeRDPWebsocketStreaming(debugging_url, url, device_configuration, user_agent_str, args.collect_console, args.collect_tracing, callback_on_received_event, None)
+            debugging_socket = ChromeRDPWebsocketStreaming(debugging_url, url, device_configuration, user_agent_str, args.collect_console, args.collect_tracing, callback_on_received_event, None, args.preserve_cache)
             def timeout_handler(a, b):
                 callback_on_page_done_streaming(debugging_socket)
                 sys.exit(0)
@@ -79,7 +79,7 @@ def main(device_configuration, url, disable_tracing, reload_page):
             print 'Setting SIGTERM handler'
             signal.signal(signal.SIGTERM, timeout_handler)
         else:
-            debugging_socket = ChromeRDPWebsocketStreaming(debugging_url, url, device_configuration, user_agent_str, args.collect_console, args.collect_tracing, callback_on_received_event, callback_on_page_done_streaming)
+            debugging_socket = ChromeRDPWebsocketStreaming(debugging_url, url, device_configuration, user_agent_str, args.collect_console, args.collect_tracing, callback_on_received_event, callback_on_page_done_streaming, args.preserve_cache)
         debugging_socket.start()
     
 def output_cpu_running_chrome(output_directory, cpu_id):
@@ -210,6 +210,7 @@ if __name__ == '__main__':
     argparser.add_argument('--get-chromium-logs', default=False, action='store_true')
     argparser.add_argument('--get-dependency-baseline', default=False, action='store_true')
     argparser.add_argument('--collect-tracing', default=False, action='store_true')
+    argparser.add_argument('--preserve-cache', default=False, action='store_true')
     args = argparser.parse_args()
 
     # Setup the config filename

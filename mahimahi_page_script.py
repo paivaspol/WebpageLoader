@@ -48,7 +48,7 @@ def main(config_filename, pages, iterations, device_name, mode, output_dir):
                 page_to_tries_counter[page] = 0
             page_to_tries_counter[page] += 1
             if page_to_tries_counter[page] > MAX_LOAD_TRIES:
-                failed_pages.append(page)
+                failed_pages.append(page_tuple)
                 continue
 
             if current_time_map is not None:
@@ -283,6 +283,9 @@ def load_one_website(page, iterations, output_dir, device_info, mode, replay_con
             common_module.reset_cpu_measurements()
             common_module.start_cpu_measurements(device_info[0], output_filename)
 
+        if args.record_screen:
+            common_module.start_screen_recording(device_info[0])
+
         if args.get_chromium_logs:
             clear_chromium_logs(device_info[2]['id'])
 
@@ -295,6 +298,9 @@ def load_one_website(page, iterations, output_dir, device_info, mode, replay_con
             common_module.stop_tcpdump(page.strip(), device_info[0], output_dir_run=iteration_path)
         elif args.start_measurements is not None and args.start_measurements == 'cpu':
             common_module.stop_cpu_measurements(page.strip(), device_info[0], output_dir_run=iteration_path)
+
+        if args.record_screen:
+            common_module.stop_screen_recording(page.strip(), device_info[0], output_dir_run=iteration_path)
 
         if result is not None:
             return result, run_index
@@ -383,6 +389,9 @@ def load_page(raw_line, run_index, output_dir, start_measurements, device_info, 
         cmd += ' --collect-console'
     if args.collect_tracing:
         cmd += ' --collect-tracing'
+    if args.preserve_cache and run_index > 0:
+        # Only preserve the cache after the cache is warmed in the first run.
+        cmd += ' --preserve-cache'
     print cmd
     page_load_process = subprocess.Popen(cmd.split())
 
@@ -473,6 +482,8 @@ if __name__ == '__main__':
     parser.add_argument('--fetch-server-side-logs', default=False, action='store_true')
     parser.add_argument('--start-measurements', default=None, choices=[ 'tcpdump', 'cpu', 'both' ])
     parser.add_argument('--collect-tracing', default=False, action='store_true')
+    parser.add_argument('--record-screen', default=False, action='store_true')
+    parser.add_argument('--preserve-cache', default=False, action='store_true')
     args = parser.parse_args()
     if args.mode == 'delay_replay' and args.delay is None:
         sys.exit("Must specify delay")
