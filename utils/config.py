@@ -21,6 +21,7 @@ PAGE_TO_TIMESTAMP_FILE = 'page-to-timestamp-file'
 WITH_DEPENDENCIES = 'with-dependencies'
 BINARY_DIR = 'binary-dir'
 RECORD_SCREEN = 'record-screen'
+NETWORK_BOTTLENECK = 'network-bottleneck'
 PRESERVE_CACHE = 'preserve-cache'
 HTTP_VERSION = 'http-version'
 
@@ -43,7 +44,8 @@ def populate_optional_fields(config_dict):
     optional_fields_vals = {
             PRESERVE_CACHE: 'false', 
             HTTP_VERSION: 2, 
-            RECORD_SCREEN: 'false'
+            RECORD_SCREEN: 'false',
+            NETWORK_BOTTLENECK: 'false'
          }
     for f, v in optional_fields_vals.iteritems():
         if f not in config_dict:

@@ -102,6 +102,7 @@ def run_replay_driver(config):
     page_to_timestamp = config[config_util.PAGE_TO_TIMESTAMP_FILE]
     with_dependencies = config[config_util.WITH_DEPENDENCIES]
     record_screen = config[config_util.RECORD_SCREEN]
+    network_bottleneck = config[config_util.NETWORK_BOTTLENECK]
     preserve_cache = config[config_util.PRESERVE_CACHE]
     http_version = config[config_util.HTTP_VERSION]
     command = 'python mahimahi_page_script.py {0} {1} Nexus_6_2_chromium {2} per_packet_delay_replay {3} --use-openvpn --pac-file-location http://{4}/config_testing.pac --page-time-mapping {5} --http-version {6} --fetch-server-side-logs --start-measurements both --collect-tracing --collect-console'.format(page_list, replay_driver_conf, iterations, experiment_output_dir, replay_hostname, page_to_timestamp, http_version)
@@ -109,6 +110,8 @@ def run_replay_driver(config):
         command += ' --without-dependencies'
     if record_screen == 'true':
         command += ' --record-screen'
+    if network_bottleneck == 'true':
+        command += ' --get-dependency-baseline'
     if preserve_cache == 'true':
         command += ' --preserve-cache'
     proc = subprocess.Popen(command, shell=True, preexec_fn=os.setsid)

@@ -21,7 +21,8 @@ from utils import phone_connection_utils
 
 WAIT = 2
 TIMEOUT = int(1 * 60)
-TIMEOUT_DEPENDENCY_BASELINE = 0.2 * 60 # 42seconds
+TIMEOUT_DEPENDENCY_BASELINE = 20 # 42seconds
+TIMEOUT_SCREEN_RECORD = 45
 MAX_TRIES = 7
 MAX_LOAD_TRIES = 2
 
@@ -284,7 +285,20 @@ def load_one_website(page, iterations, output_dir, device_info, mode, replay_con
             common_module.start_cpu_measurements(device_info[0], output_filename)
 
         if args.record_screen:
+            # pin Chrome to 3 cpus.
+            # (1) Get all pid associated to chrome.
+            # for p in pids:
+                # (2) Run pin_process_to_cpu
+            proc_ids = common_module.get_process_ids(device_info[0], 'chromium')
+            for pid in proc_ids:
+                common_module.pin_process_to_cpu(device_info[0], 7, pid)
+
             common_module.start_screen_recording(device_info[0])
+
+            # pin screenrecord to 1cpu.
+            proc_ids = common_module.get_process_ids(device_info[0], 'screenrecord')
+            for pid in proc_ids:
+                common_module.pin_process_to_cpu(device_info[0], 8, pid)
 
         if args.get_chromium_logs:
             clear_chromium_logs(device_info[2]['id'])
@@ -385,6 +399,10 @@ def load_page(raw_line, run_index, output_dir, start_measurements, device_info, 
         signal.alarm(0)
         signal.alarm(int(TIMEOUT_DEPENDENCY_BASELINE))
         cmd += ' --get-dependency-baseline'
+    if args.record_screen:
+        signal.alarm(0)
+        signal.alarm(int(TIMEOUT_SCREEN_RECORD))
+        cmd += ' --get-dependency-baseline'
     if args.collect_console:
         cmd += ' --collect-console'
     if args.collect_tracing:
@@ -412,7 +430,7 @@ def load_page(raw_line, run_index, output_dir, start_measurements, device_info, 
             if args.get_chromium_logs:
                 get_chromium_logs(run_index, output_dir, page, device_info[2]['id'])
         # Kill the browser and append a page.
-        if not args.get_dependency_baseline:
+        if not (args.get_dependency_baseline or args.record_screen):
             stop_proxy(mode, raw_line, current_time, replay_configurations)
             try:
                 chrome_utils.close_all_tabs(device_info[2])
