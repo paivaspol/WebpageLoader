@@ -58,7 +58,6 @@ class ChromeRDPWebsocketStreaming(object):
                                         on_message = self.on_message,\
                                         on_error = self.on_error,\
                                         on_close = self.on_close)
-        self.root_html_request_id = None
         self.ws.on_open = self.on_open
 
         self.tracing_started = False
@@ -79,7 +78,6 @@ class ChromeRDPWebsocketStreaming(object):
                 self.start_page = True
                 self.callback_on_network_event(self, message_obj, message)
                 self.originalRequestMs = message_obj[PARAMS][TIMESTAMP] * 1000
-                self.root_html_req_id = message_obj[PARAMS]['requestId']
         elif METHOD in message_obj and message_obj[METHOD].startswith('Page'):
             if message_obj[METHOD] == 'Page.domContentEventFired' and self.start_page:
                 self.domContentEventFiredMs = message_obj[PARAMS][TIMESTAMP] * 1000

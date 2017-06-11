@@ -148,8 +148,8 @@ def callback_on_page_done_streaming(debugging_socket):
     # sleep(0.5)
     # navigation_utils.navigate_to_page(new_debugging_websocket, 'about:blank')
     # sleep(0.5)
-    if args.record_content and ws.root_html_request_id is not None:
-        body = get_request_body(new_debugging_websocket, ws.root_html_request_id)
+    if args.record_content:
+        body = navigation_utils.get_modified_html(new_debugging_websocket)
         with open(os.path.join(base_dir, 'root_html'), 'wb') as output_file:
             output_file.write(body)
     new_debugging_websocket.close()
