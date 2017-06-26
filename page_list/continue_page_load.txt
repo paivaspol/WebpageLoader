@@ -1,8 +1,0 @@
-http://www.uefa.com/ http://www.uefa.com/
-http://www.ufc.com/ http://m.ufc.com/
-http://www.usatoday.com/ http://www.usatoday.com/
-http://www.usnews.com/ http://www.usnews.com/
-http://www.weather.gov/ http://www.weather.gov/
-http://www.wimbledon.com/ http://www.wimbledon.com/index.html
-http://www.wwe.com/ http://www.wwe.com/
-http://www.tsn.ca/ http://www.tsn.ca/

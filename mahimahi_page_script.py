@@ -21,7 +21,8 @@ from utils import phone_connection_utils
 
 WAIT = 2
 TIMEOUT = int(1 * 60)
-TIMEOUT_DEPENDENCY_BASELINE = 0.2 * 60 # 42seconds
+TIMEOUT_DEPENDENCY_BASELINE = 20 # 42seconds
+TIMEOUT_SCREEN_RECORD = 45
 MAX_TRIES = 7
 MAX_LOAD_TRIES = 2
 
@@ -48,7 +49,7 @@ def main(config_filename, pages, iterations, device_name, mode, output_dir):
                 page_to_tries_counter[page] = 0
             page_to_tries_counter[page] += 1
             if page_to_tries_counter[page] > MAX_LOAD_TRIES:
-                failed_pages.append(page)
+                failed_pages.append(page_tuple)
                 continue
 
             if current_time_map is not None:
@@ -283,6 +284,22 @@ def load_one_website(page, iterations, output_dir, device_info, mode, replay_con
             common_module.reset_cpu_measurements()
             common_module.start_cpu_measurements(device_info[0], output_filename)
 
+        if args.record_screen:
+            # pin Chrome to 3 cpus.
+            # (1) Get all pid associated to chrome.
+            # for p in pids:
+                # (2) Run pin_process_to_cpu
+            proc_ids = common_module.get_process_ids(device_info[0], 'chromium')
+            for pid in proc_ids:
+                common_module.pin_process_to_cpu(device_info[0], 7, pid)
+
+            common_module.start_screen_recording(device_info[0])
+
+            # pin screenrecord to 1cpu.
+            proc_ids = common_module.get_process_ids(device_info[0], 'screenrecord')
+            for pid in proc_ids:
+                common_module.pin_process_to_cpu(device_info[0], 8, pid)
+
         if args.get_chromium_logs:
             clear_chromium_logs(device_info[2]['id'])
 
@@ -295,6 +312,9 @@ def load_one_website(page, iterations, output_dir, device_info, mode, replay_con
             common_module.stop_tcpdump(page.strip(), device_info[0], output_dir_run=iteration_path)
         elif args.start_measurements is not None and args.start_measurements == 'cpu':
             common_module.stop_cpu_measurements(page.strip(), device_info[0], output_dir_run=iteration_path)
+
+        if args.record_screen:
+            common_module.stop_screen_recording(page.strip(), device_info[0], output_dir_run=iteration_path)
 
         if result is not None:
             return result, run_index
@@ -379,10 +399,17 @@ def load_page(raw_line, run_index, output_dir, start_measurements, device_info, 
         signal.alarm(0)
         signal.alarm(int(TIMEOUT_DEPENDENCY_BASELINE))
         cmd += ' --get-dependency-baseline'
+    if args.record_screen:
+        signal.alarm(0)
+        signal.alarm(int(TIMEOUT_SCREEN_RECORD))
+        cmd += ' --get-dependency-baseline'
     if args.collect_console:
         cmd += ' --collect-console'
     if args.collect_tracing:
         cmd += ' --collect-tracing'
+    if args.preserve_cache and run_index > 0:
+        # Only preserve the cache after the cache is warmed in the first run.
+        cmd += ' --preserve-cache'
     print cmd
     page_load_process = subprocess.Popen(cmd.split())
 
@@ -403,7 +430,7 @@ def load_page(raw_line, run_index, output_dir, start_measurements, device_info, 
             if args.get_chromium_logs:
                 get_chromium_logs(run_index, output_dir, page, device_info[2]['id'])
         # Kill the browser and append a page.
-        if not args.get_dependency_baseline:
+        if not (args.get_dependency_baseline or args.record_screen):
             stop_proxy(mode, raw_line, current_time, replay_configurations)
             try:
                 chrome_utils.close_all_tabs(device_info[2])
@@ -473,6 +500,8 @@ if __name__ == '__main__':
     parser.add_argument('--fetch-server-side-logs', default=False, action='store_true')
     parser.add_argument('--start-measurements', default=None, choices=[ 'tcpdump', 'cpu', 'both' ])
     parser.add_argument('--collect-tracing', default=False, action='store_true')
+    parser.add_argument('--record-screen', default=False, action='store_true')
+    parser.add_argument('--preserve-cache', default=False, action='store_true')
     args = parser.parse_args()
     if args.mode == 'delay_replay' and args.delay is None:
         sys.exit("Must specify delay")

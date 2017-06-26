@@ -199,10 +199,41 @@ def start_cpu_measurements(device, output_file, running_path='.'):
         current_timer = threading.Timer(0.06, start_cpu_measurements, [ device, output_file ])
         current_timer.start()
 
+def get_process_ids(device, proc_name):
+    device, device_config, device_config_obj = get_device_config(device)
+    command = 'adb -s {0} shell \'ps | grep {1}\''.format(device_config_obj['id'], proc_name)
+    process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    output, _ = process.communicate()
+    lines = output.split('\n')
+    result = []
+    for l in lines:
+        if 'grep' not in l and len(l) > 0:
+            result.append(l.strip().split()[0])
+    return result
+
+def pin_process_to_cpu(device, bitmask, proc_id):
+    device, device_config, device_config_obj = get_device_config(device)
+    command = 'adb -s {0} shell \'su -c \'taskset -p {1} {2}\'\''.format(device_config_obj['id'], \
+                                                                         bitmask, proc_id)
+    subprocess.call(command, shell=True)
+
 def start_tcpdump(device, running_path='.'):
     device, device_config, _ = get_device_config(device, running_path=running_path)
     start_tcpdump_command = 'python ./utils/start_tcpdump.py {0} {1}'.format(device_config, device)
     subprocess.Popen(start_tcpdump_command, shell=True).wait()
+
+def start_screen_recording(device, running_path='.'):
+    device, device_config, _ = get_device_config(device, running_path=running_path)
+    start_screen_capture_command = 'python ./utils/start_screen_capture.py {0} {1}'.format(device_config, device)
+    subprocess.Popen(start_screen_capture_command, shell=True).wait()
+
+def stop_screen_recording(line, device, output_dir_run='.', running_path='.'):
+    url = escape_page(line)
+    device, device_config, _ = get_device_config(device, running_path=running_path)
+    output_directory = os.path.join(output_dir_run, url)
+    screen_record_filename = os.path.join(output_directory, 'screen_record.mp4')
+    stop_screen_capture = 'python ./utils/stop_screen_capture.py {0} {1} --output-dir {2}'.format(device_config, device, screen_record_filename)
+    subprocess.Popen(stop_screen_capture, shell=True).wait()
 
 def start_tcpdump_and_cpu_measurement(device, cpu_utilization_output_filename, running_path='.'):
     start_cpu_measurements(device, cpu_utilization_output_filename, running_path=running_path)

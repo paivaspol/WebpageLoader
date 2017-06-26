@@ -1,4 +1,7 @@
 # http://www.scout.com/ http://www.scout.com/
 # https://www.yahoo.com/news/ https://www.yahoo.com/news/
 # http://www.espncricinfo.com/ http://www.espncricinfo.com/
-# http://android.livescore.com/ http://android.livescore.com/
+http://android.livescore.com/ http://android.livescore.com/
+http://www.eurosport.com/ http://www.eurosport.com/
+http://www.manutd.com/ http://www.manutd.com/
+# http://abcnews.go.com/ http://abcnews.go.com/
