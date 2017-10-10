@@ -25,7 +25,7 @@ DEVICE_UBUNTU = 'ubuntu'
 
 ANDROID_CHROME_INSTANCE = 'com.android.chrome/com.google.android.apps.chrome.Main'
 ANDROID_CHROMIUM_INSTANCE = 'org.chromium.chrome/com.google.android.apps.chrome.Main'
-MAC_CHROME_INSTANCE = '"/Applications/Google Chrome Canary.app/Contents/MacOS/Google Chrome Canary"'
+MAC_CHROME_INSTANCE = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
 UBUNTU_CHROME_INSTANCE = '"/opt/google/chrome/google-chrome"'
 
 CHANGE_USER_AGENT = 'change_user_agent'
@@ -34,6 +34,10 @@ USER_AGENT = 'user_agent'
 IGNORE_CERTIFICATE_ERRORS = 'ignore_certificate_errors'
 USER_AGENT_STR = 'Mozilla/5.0 (Linux; Android 6.0.1; Nexus 6 Build/MMB29S) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/50.0.2645.0 Mobile Safari/537.36'
 PAC_FILE_PATH = 'pac_file_path'
+
+global chrome_proc
+chrome_proc = None
+global devnull
 
 def start_chrome(device_configuration):
     '''
@@ -53,16 +57,19 @@ def start_chrome(device_configuration):
         # print 'device config: ' + str(device_configuration)
         # Run Chrome.
         print "Run experiment chrome"
-        #cmd = device_configuration[CHROME_INSTANCE] + '  --disable-extensions --remote-debugging-port={0} --disable-logging --enable-devtools-experiments --user-data-dir=chrome-{1} --utility-allowed-dir=chrome-{1} --artifects-dir=chrome-{1} '.format(device_configuration[CHROME_DESKTOP_DEBUG_PORT], random.random())
-        cmd = device_configuration[CHROME_INSTANCE] + '  --disable-extensions --remote-debugging-port={0} --disable-logging --enable-devtools-experiments '.format(device_configuration[CHROME_DESKTOP_DEBUG_PORT], random.random())
+        cmd = [ device_configuration[CHROME_INSTANCE] ]
+        args = '--disable-extensions --remote-debugging-port={0} --disable-logging --enable-devtools-experiments --user-data-dir=/tmp/chrome-{1} --no-first-run'.format(device_configuration[CHROME_DESKTOP_DEBUG_PORT], random.random())
         if PAC_FILE_PATH in device_configuration:
-            cmd += ' --proxy-pac-url={0}'.format(device_configuration[PAC_FILE_PATH])
+            args += ' --proxy-pac-url={0}'.format(device_configuration[PAC_FILE_PATH])
         if IGNORE_CERTIFICATE_ERRORS in device_configuration:
-            cmd += ' --ignore-certificate-errors'
-        cmd += ' > /dev/null 2>&1 &'
-        p = subprocess.call(cmd, shell=True)
+            args += ' --ignore-certificate-errors'
+        cmd.extend(args.split(' '))
+        global chrome_proc
+        global devnull
+        devnull = open(os.devnull, 'wb')
+        chrome_proc = subprocess.Popen(cmd, stdout=devnull, stderr=devnull)
         sleep(3)
-        return p
+        return chrome_proc
 
 def bring_chrome_to_foreground(device_configuration):
     # Run chrome
@@ -82,10 +89,15 @@ def stop_chrome(device_configuration):
         cmd = cmd_base.format(device_configuration[DEVICE_ID], chrome_instance)
         # print cmd
         subprocess.call(cmd, shell=True)
-    elif device_configuration[DEVICE_TYPE] == DEVICE_MAC:
-        subprocess.call('pkill -9 Chrome', shell=True)
-    elif device_configuration[DEVICE_TYPE] == DEVICE_UBUNTU:
-        subprocess.call('pkill -9 chrome', shell=True)
+    elif device_configuration[DEVICE_TYPE] == DEVICE_MAC or \
+        device_configuration[DEVICE_TYPE] == DEVICE_UBUNTU:
+        global chrome_proc
+        global devnull
+        if chrome_proc is not None:
+            chrome_proc.kill()
+            devnull.close()
+            # os.killpg(os.getpgid(chrome_proc.pid), signal.SIGTERM)
+            # subprocess.call('pkill -9 chrome', shell=True)
 
 def bring_openvpn_connect_foreground(device_configuration):
     # Run chrome
