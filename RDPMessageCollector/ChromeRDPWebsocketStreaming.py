@@ -30,13 +30,13 @@ def escape_page(url):
 
 class ChromeRDPWebsocketStreaming(object):
 
-    def __init__(self, url, target_url, device_configuration, user_agent_str, collect_console, collect_tracing, callback_on_network_event, callback_page_done, preserve_cache):
+    def __init__(self, url, target_url, device_configuration, user_agent_str, collect_console, collect_tracing, js_run_onload, callback_on_network_event, callback_page_done, preserve_cache):
         '''
         Initialize the object. 
         url - the websocket url
         target_url - the url to navigate to
         '''
-        # websocket.enableTrace(True)
+        websocket.enableTrace(True)
 
         # Conditions for a page to finish loading.
         self.originalRequestMs = None
@@ -53,6 +53,7 @@ class ChromeRDPWebsocketStreaming(object):
         self.user_agent = user_agent_str
         self.device_configuration = device_configuration # The device configuration
         self.debugging_url = url
+        self.js_run_onload = js_run_onload
         self.preserve_cache = preserve_cache
         self.ws = websocket.WebSocketApp(url,\
                                         on_message = self.on_message,\
@@ -149,6 +150,9 @@ class ChromeRDPWebsocketStreaming(object):
 
         if not self.preserve_cache:
             self.clear_cache(self.ws)
+
+        if self.js_run_onload is not None:
+            self.assign_js_run_onload(self.ws)
         
         # self.enable_trace_collection(self.ws)
         # navigation_utils.navigate_to_page(self.ws, 'about:blank')
@@ -314,6 +318,12 @@ class ChromeRDPWebsocketStreaming(object):
         print 'Enabled page tracking.'
         # sleep(WAIT)
 
+    def add_script_to_execute_onload(self, debug_connection):
+        '''
+        Assign a script to execute on onload.
+        '''
+        
+
     def enable_runtime(self, debug_connection):
         '''
         Enables Runtime in Chrome.
@@ -360,3 +370,7 @@ class ChromeRDPWebsocketStreaming(object):
         Returns the debugging url.
         '''
         return self.debugging_url
+
+    def assign_js_run_onload(self, debug_connection):
+        assign_js = { 'id': 13, 'method': 'Page.addScriptToEvaluateOnLoad', 'params': { 'scriptSource': self.js_run_onload }}
+        debug_connection.send(json.dumps(assign_js))

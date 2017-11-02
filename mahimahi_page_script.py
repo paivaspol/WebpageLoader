@@ -410,6 +410,8 @@ def load_page(raw_line, run_index, output_dir, start_measurements, device_info, 
     if args.preserve_cache and run_index > 0:
         # Only preserve the cache after the cache is warmed in the first run.
         cmd += ' --preserve-cache'
+    if args.execute_script_onload is not None:
+        cmd += ' --run-js-onload={0}'.format(args.execute_script_onload)
     print cmd
     page_load_process = subprocess.Popen(cmd.split())
 
@@ -502,6 +504,7 @@ if __name__ == '__main__':
     parser.add_argument('--collect-tracing', default=False, action='store_true')
     parser.add_argument('--record-screen', default=False, action='store_true')
     parser.add_argument('--preserve-cache', default=False, action='store_true')
+    parser.add_argument('--execute-script-onload', default=None)
     args = parser.parse_args()
     if args.mode == 'delay_replay' and args.delay is None:
         sys.exit("Must specify delay")

@@ -24,6 +24,7 @@ RECORD_SCREEN = 'record-screen'
 NETWORK_BOTTLENECK = 'network-bottleneck'
 PRESERVE_CACHE = 'preserve-cache'
 HTTP_VERSION = 'http-version'
+JS_ONLOAD = 'js-onload'
 
 # OPTIONAL FIELDS
 DESCRIPTION = 'description'

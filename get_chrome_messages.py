@@ -53,6 +53,11 @@ def main(device_configuration, url, disable_tracing, reload_page):
     if phone_connection_utils.SCREEN_SIZE in device_configuration:
         screen_size_config = device_configuration[phone_connection_utils.SCREEN_SIZE]
 
+    # Get the JS to run onload.
+    js_to_run = None
+    if args.run_js_onload is not None:
+        js_to_run = get_js_to_run(args.run_js_onload)
+
     if disable_tracing:
         chrome_rdp_object_without_tracing = ChromeRDPWithoutTracing(debugging_url, url, user_agent_str, screen_size_config)
         start_time, end_time = chrome_rdp_object_without_tracing.navigate_to_page(url, reload_page)
@@ -71,7 +76,7 @@ def main(device_configuration, url, disable_tracing, reload_page):
             os.remove(tracing_filename)
 
         if args.get_dependency_baseline:
-            debugging_socket = ChromeRDPWebsocketStreaming(debugging_url, url, device_configuration, user_agent_str, args.collect_console, args.collect_tracing, callback_on_received_event, None, args.preserve_cache)
+            debugging_socket = ChromeRDPWebsocketStreaming(debugging_url, url, device_configuration, user_agent_str, args.collect_console, args.collect_tracing, js_to_run, callback_on_received_event, None, args.preserve_cache)
             def timeout_handler(a, b):
                 callback_on_page_done_streaming(debugging_socket)
                 sys.exit(0)
@@ -79,9 +84,16 @@ def main(device_configuration, url, disable_tracing, reload_page):
             print 'Setting SIGTERM handler'
             signal.signal(signal.SIGTERM, timeout_handler)
         else:
-            debugging_socket = ChromeRDPWebsocketStreaming(debugging_url, url, device_configuration, user_agent_str, args.collect_console, args.collect_tracing, callback_on_received_event, callback_on_page_done_streaming, args.preserve_cache)
+            debugging_socket = ChromeRDPWebsocketStreaming(debugging_url, url, device_configuration, user_agent_str, args.collect_console, args.collect_tracing, js_to_run, callback_on_received_event, callback_on_page_done_streaming, args.preserve_cache)
         debugging_socket.start()
-    
+
+def get_js_to_run(js_filename):
+    retval = ''
+    with open(js_filename, 'rb') as input_file:
+        for l in input_file:
+            retval += l
+    return retval
+
 def output_cpu_running_chrome(output_directory, cpu_id):
     '''
     Outputs the CPU id that is running chrome.
@@ -215,6 +227,7 @@ if __name__ == '__main__':
     argparser.add_argument('--get-dependency-baseline', default=False, action='store_true')
     argparser.add_argument('--collect-tracing', default=False, action='store_true')
     argparser.add_argument('--preserve-cache', default=False, action='store_true')
+    argparser.add_argument('--run-js-onload', default=None)
     args = argparser.parse_args()
 
     # Setup the config filename

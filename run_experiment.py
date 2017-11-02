@@ -105,6 +105,11 @@ def run_replay_driver(config):
     network_bottleneck = config[config_util.NETWORK_BOTTLENECK]
     preserve_cache = config[config_util.PRESERVE_CACHE]
     http_version = config[config_util.HTTP_VERSION]
+
+    js_to_run = None
+    if config_util.JS_ONLOAD in config:
+        js_to_run = config[config_util.JS_ONLOAD]
+
     command = 'python mahimahi_page_script.py {0} {1} Nexus_6_2_chromium {2} per_packet_delay_replay {3} --use-openvpn --pac-file-location http://{4}/config_testing.pac --page-time-mapping {5} --http-version {6} --fetch-server-side-logs --start-measurements both --collect-tracing --collect-console'.format(page_list, replay_driver_conf, iterations, experiment_output_dir, replay_hostname, page_to_timestamp, http_version)
     if with_dependencies != 'true':
         command += ' --without-dependencies'
@@ -114,6 +119,8 @@ def run_replay_driver(config):
         command += ' --get-dependency-baseline'
     if preserve_cache == 'true':
         command += ' --preserve-cache'
+    if js_to_run is not None:
+        command += ' --execute-script-onload="{0}"'.format(js_to_run)
     proc = subprocess.Popen(command, shell=True, preexec_fn=os.setsid)
     return proc
 
@@ -162,14 +169,6 @@ if __name__ == '__main__':
         os.remove(RUN_LOG_FILENAME)
     jobs = get_jobs(args.config_file_list) # Each config file is one experiment
     print 'Jobs: ' + str(jobs)
-    
-    # Check if phone is unlock.
-    # phone_status = pcu.get_phone_status()
-    # if phone_status == pcu.SCREEN_OFF_AND_LOCKED or \
-    #     phone_status == pcu.SCREEN_ON_BUT_LOCKED:
-    #     # Need to turn on the screen and unlock phone.
-    #     pcu.unlock_phone()
-
     for job in jobs:
         run_experiment(job)
         time.sleep(7) # Sleep for 7s before moving on to the next job.
