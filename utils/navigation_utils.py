@@ -32,6 +32,12 @@ def set_user_agent(debug_connection, user_agent_str):
     debug_connection.send(override_user_agent)
     sleep(0.5)
 
+def get_atf_content_with_socket(ws, script):
+    get_atf_message = json.dumps({ "id": 57, "method": "Runtime.evaluate","params": { "expression": script, "returnByValue": True }})
+    ws.send(get_atf_message)
+    result = json.loads(ws.recv())
+    return result['result']['result']['value']
+
 def get_start_end_time_with_socket(ws):
     start_time = None
     end_time = None

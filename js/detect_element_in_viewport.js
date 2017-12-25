@@ -12,6 +12,7 @@ function isElementInViewport (el) {
 
 // Get all elements in the DOM tree.
 const all = document.getElementsByTagName("*");
+const result = {};
 for (var i = 0; i < all.length; i++) {
   var el = all[i];
   // Only care if the element has either href or src.
@@ -19,7 +20,15 @@ for (var i = 0; i < all.length; i++) {
     continue
   }
 
+  // Skip tags that are not actual resources.
+  if (el.tagName.toLowerCase() === "a" || el.tagName.toLowerCase() === "script" ||
+      el.tagName.toLowerCase() === "link") {
+    continue
+  }
+
   var isInViewport = isElementInViewport(el);
   var url = el.hasAttribute("src") ? el.src : el.href;
+  result[url] = isInViewport;
   console.log(url + " " + isInViewport);
 }
+result;

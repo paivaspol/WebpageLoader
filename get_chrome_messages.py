@@ -160,6 +160,11 @@ def callback_on_page_done_streaming(debugging_socket):
     # sleep(0.5)
     # navigation_utils.navigate_to_page(new_debugging_websocket, 'about:blank')
     # sleep(0.5)
+    if args.run_js_onload:
+        atf_content = navigation_utils.get_atf_content_with_socket(new_debugging_websocket, debugging_socket.get_onload_js())
+        with open(os.path.join(base_dir, 'atf_content'), 'wb') as output_file:
+            output_file.write(json.dumps(atf_content))
+
     if args.record_content:
         body = navigation_utils.get_modified_html(new_debugging_websocket)
         with open(os.path.join(base_dir, 'root_html'), 'wb') as output_file:

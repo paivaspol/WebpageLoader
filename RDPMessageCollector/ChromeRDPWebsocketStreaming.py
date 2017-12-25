@@ -36,7 +36,7 @@ class ChromeRDPWebsocketStreaming(object):
         url - the websocket url
         target_url - the url to navigate to
         '''
-        websocket.enableTrace(True)
+        # websocket.enableTrace(True)
 
         # Conditions for a page to finish loading.
         self.originalRequestMs = None
@@ -151,9 +151,6 @@ class ChromeRDPWebsocketStreaming(object):
         if not self.preserve_cache:
             self.clear_cache(self.ws)
 
-        if self.js_run_onload is not None:
-            self.assign_js_run_onload(self.ws)
-        
         # self.enable_trace_collection(self.ws)
         # navigation_utils.navigate_to_page(self.ws, 'about:blank')
         sleep(WAIT)
@@ -371,6 +368,5 @@ class ChromeRDPWebsocketStreaming(object):
         '''
         return self.debugging_url
 
-    def assign_js_run_onload(self, debug_connection):
-        assign_js = { 'id': 13, 'method': 'Page.addScriptToEvaluateOnLoad', 'params': { 'scriptSource': self.js_run_onload }}
-        debug_connection.send(json.dumps(assign_js))
+    def get_onload_js(self):
+        return self.js_run_onload
