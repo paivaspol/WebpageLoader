@@ -11,6 +11,7 @@ UPLINK = 'uplink'
 RTT = 'rtt'
 REPLAY_ENV_BRANCH = 'replay-env-branch'
 REPLAY_SRC_DIR = 'replay-src-dir'
+DEVICE = 'device'
 
 REPLAY_HOSTNAME = 'replay-hostname'
 REPLAY_DRIVER_CONF = 'replay-driver-conf'
@@ -24,6 +25,7 @@ RECORD_SCREEN = 'record-screen'
 NETWORK_BOTTLENECK = 'network-bottleneck'
 PRESERVE_CACHE = 'preserve-cache'
 HTTP_VERSION = 'http-version'
+USE_PROXY = 'use-proxy'
 JS_ONLOAD = 'js-onload'
 
 # OPTIONAL FIELDS
@@ -43,10 +45,12 @@ def parse(config_filename):
 
 def populate_optional_fields(config_dict):
     optional_fields_vals = {
+            DEVICE: 'Nexus_6_2_chromium',
             PRESERVE_CACHE: 'false', 
             HTTP_VERSION: 2, 
             RECORD_SCREEN: 'false',
-            NETWORK_BOTTLENECK: 'false'
+            NETWORK_BOTTLENECK: 'false',
+            USE_PROXY: 'true'
          }
     for f, v in optional_fields_vals.iteritems():
         if f not in config_dict:
@@ -74,6 +78,7 @@ def write_replay_env_config(configs):
         replay_env.write('build-prefix = {0}\n'.format(binary_dir))
         replay_env.write('mm-proxyreplay = /bin/mm-proxyreplay\n')
         replay_env.write('mm-http1-proxyreplay = /bin/mm-http1-proxyreplay\n')
+        replay_env.write('mm-http1-replay-no-proxy = /bin/mm-http1-proxyreplay-no-proxy\n')
         replay_env.write('nghttpx_port = 3000\n')
         replay_env.write('nghttpx_key = /certs/reverse_proxy_key.pem\n')
         replay_env.write('nghttpx_cert = /certs/reverse_proxy_cert.pem\n')
@@ -93,4 +98,5 @@ def write_replay_env_config(configs):
         replay_env.write('dependency_directory_path = {0}\n'.format(dep_dir))
         replay_env.write('base_record_dir = {0}\n'.format(record_dir))
         replay_env.write('base_result_dir = {0}\n'.format(replay_dir))
+        print replay_env
     return os.path.join(os.getcwd(), replay_env_filename)

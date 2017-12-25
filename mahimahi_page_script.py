@@ -208,6 +208,8 @@ def start_proxy(mode, page, time, replay_configurations, delay=0):
             start_proxy_url += '&delay={0}'.format(args.delay)
         if args.http_version == 1:
             start_proxy_url += '&http={0}'.format(args.http_version)
+            if args.no_proxy:
+                start_proxy_url += '_no_proxy'
 
         if args.without_dependencies:
             start_proxy_url += '&dependencies=no'
@@ -346,6 +348,8 @@ def check_proxy_running(config, mode):
                 config[replay_config_utils.SERVER_PORT], \
                 server_check, \
                 args.http_version)
+    if args.no_proxy:
+        url += '_no_proxy'
 
     sleep(0.01)
     result = requests.get(url)
@@ -505,6 +509,7 @@ if __name__ == '__main__':
     parser.add_argument('--record-screen', default=False, action='store_true')
     parser.add_argument('--preserve-cache', default=False, action='store_true')
     parser.add_argument('--execute-script-onload', default=None)
+    parser.add_argument('--no-proxy', default=False, action='store_true')
     args = parser.parse_args()
     if args.mode == 'delay_replay' and args.delay is None:
         sys.exit("Must specify delay")
