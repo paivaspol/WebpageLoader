@@ -272,13 +272,13 @@ def initialize_browser(device):
     phone_connection_utils.stop_chrome(device_config_obj)
     print 'Starting Chrome...'
     phone_connection_utils.start_chrome(device_config_obj)
-    # closed_tabs = False
-    # while not closed_tabs:
-    #     try:
-    #         chrome_utils.close_all_tabs(device_config_obj)
-    #         closed_tabs = True
-    #     except requests.exceptions.ConnectionError as e:
-    #         pass
+    closed_tabs = False
+    while not closed_tabs:
+        try:
+            chrome_utils.close_all_tabs(device_config_obj)
+            closed_tabs = True
+        except requests.exceptions.ConnectionError as e:
+            pass
 
 def get_device_config_obj(device, device_config):
     config_reader = ConfigParser()

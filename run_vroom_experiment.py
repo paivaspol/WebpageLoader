@@ -88,8 +88,14 @@ def populate_metadata(config_filename, config):
     experiment_output_dir = config[config_util.EXPERIMENT_OUTPUT_DIR]
     description = config[config_util.DESCRIPTION]
     output_description(experiment_output_dir, description)
-
     subprocess.call('cp {0} {1}'.format(config_filename, os.path.join(experiment_output_dir, 'configuration')), shell=True)
+
+def run_record_driver(config):
+    '''
+    Starts the a record run
+    '''
+    pass
+
 
 def run_replay_driver(config):
     experiment_output_dir = config[config_util.EXPERIMENT_OUTPUT_DIR]
@@ -163,13 +169,6 @@ if __name__ == '__main__':
     jobs = get_jobs(args.config_file_list) # Each config file is one experiment
     print 'Jobs: ' + str(jobs)
     
-    # Check if phone is unlock.
-    # phone_status = pcu.get_phone_status()
-    # if phone_status == pcu.SCREEN_OFF_AND_LOCKED or \
-    #     phone_status == pcu.SCREEN_ON_BUT_LOCKED:
-    #     # Need to turn on the screen and unlock phone.
-    #     pcu.unlock_phone()
-
     for job in jobs:
         run_experiment(job)
         time.sleep(7) # Sleep for 7s before moving on to the next job.
