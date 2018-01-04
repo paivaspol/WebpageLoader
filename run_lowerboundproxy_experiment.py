@@ -85,7 +85,7 @@ def GenerateRedirectURL(prefetch_webserver, url):
     '''
     query = { 'dstPage': url }
     hostname = prefetch_webserver if prefetch_webserver.endswith('/') else prefetch_webserver + '/'
-    return '{0}/prefetch?{1}'.format(hostname, urllib.urlencode(query))
+    return '{0}prefetch?{1}'.format(hostname, urllib.urlencode(query))
 
 
 def GetConfig(config):
