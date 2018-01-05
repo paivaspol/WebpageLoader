@@ -50,6 +50,39 @@ def main():
         stop_proxy_command = [ config['proxyLocation'] + '/stop_proxy.sh' ]
         subprocess.call(stop_proxy_command)
 
+        # Fix the filenames.
+        RemovePrefetchServerPrefixes(config, redirectUrl, escaped_url)
+
+def RemovePrefetchServerPrefixes(config, redirect_url, escaped_page):
+    ''' Fixes the name of the results by removing the prefetch server prefixes '''
+    for i in range(0, int(config['iterations'])):
+        iter_dir = os.path.join(config['outputDir'], str(i))
+        for p in os.listdir(iter_dir):
+            prefixed_page = common_module.escape_page(redirect_url)
+            page_dir = os.path.join(iter_dir, p)
+
+            # Change the file name that contains the prefetch server.
+            for f in page_dir:
+                if prefixed_page not in f:
+                    continue
+                first_idx = f.find(prefixed_page)
+                unprefixed_f = f[:first_idx] + p
+
+                # Move the file.
+                src = os.path.join(page_dir, f)
+                dst = os.path.join(page_dir, unprefixed_f)
+                mv_cmd = 'mv {0} {1}'.format(src, dst)
+                subprocess.call(mv_cmd.split())
+    
+            # Now that we fixed all the files in the directory, 
+            # fix the page directory.
+            src = os.path.join(iter_dir, prefixed_page)
+            dst = os.path.join(iter_dir, escaped_page)
+            mv_cmd = 'mv {0} {1}'.format(src, dst)
+            subprocess.call(mv_cmd.split(' '))
+    dst = os.path.join(config['outputDir'], escaped_page)
+
+
 def SetupPacfile(config):
     ''' Setup pacfile creates a pac file and push it down to the device '''
     pacfile = Pacfile()
