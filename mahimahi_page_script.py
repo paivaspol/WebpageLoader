@@ -26,6 +26,10 @@ TIMEOUT_SCREEN_RECORD = 45
 MAX_TRIES = 7
 MAX_LOAD_TRIES = 2
 
+# Modes
+THIRD_PARTY_SPEEDUP = 'third_party_speedup_lowerbound'
+PROXY_WITHIN_REPLAY = 'proxy_within_replay'
+
 def main(config_filename, pages, iterations, device_name, mode, output_dir):
     failed_pages = []
     completed_pages = []
@@ -92,7 +96,7 @@ def main(config_filename, pages, iterations, device_name, mode, output_dir):
                 completed_pages.append(page)
 
             if args.use_openvpn:
-                common_module.initialize_browser(device_info) # Restart the browser
+                # common_module.initialize_browser(device_info) # Restart the browser
                 phone_connection_utils.bring_openvpn_connect_foreground(device_info[2])
                 phone_connection_utils.toggle_openvpn_button(device_info[2])
             stop_proxy(mode, page, current_time, replay_configurations)
@@ -112,9 +116,9 @@ def main(config_filename, pages, iterations, device_name, mode, output_dir):
                     os.mkdir(server_side_output_dir)
                 fetch_reverse_proxy_logs(escaped_page, server_side_output_dir)
 
-            if mode == 'record':
+            if mode == 'record' or mode == THIRD_PARTY_SPEEDUP or mode == PROXY_WITHIN_REPLAY:
                 sleep(3)
-        if mode == 'record':
+        if mode == 'record' or mode == THIRD_PARTY_SPEEDUP or mode == PROXY_WITHIN_REPLAY:
             done(replay_configurations)
 
         print 'Failed pages: ' + str(failed_pages)
@@ -129,7 +133,10 @@ def main(config_filename, pages, iterations, device_name, mode, output_dir):
 def output_failed_pages(output_dir, failed_pages):
     with open(os.path.join(output_dir, 'failed_pages'), 'wb') as output_file:
         for p in failed_pages:
-            output_file.write(p[0] + ' ' + p[1] + '\n')
+            if len(p) > 1:
+                output_file.write(p[0] + ' ' + p[1] + '\n')
+                continue
+            output_file.write(p[0] + '\n')
 
 def start_vpn(device_info):
     phone_connection_utils.bring_openvpn_connect_foreground(device_info)
@@ -137,6 +144,7 @@ def start_vpn(device_info):
     while not phone_connection_utils.is_connected_to_vpn(device_info):
         phone_connection_utils.toggle_openvpn_button(device_info)
         sleep(0.1)
+    phone_connection_utils.bring_chrome_to_foreground(device_info)
 
 def fetch_server_side_logs(page, output_dir):
     output_filename = os.path.join(output_dir, page)
@@ -169,7 +177,7 @@ def done(replay_configurations):
 def fetch_and_push_pac_file(pac_file_location, device_config):
     wget_cmd = 'wget {0} -O temp.pac'.format(pac_file_location)
     subprocess.call(wget_cmd.split())
-    phone_connection_utils.push_file(device_config[2], 'temp.pac', '/sdcard/Research/config_testing.pac')
+    phone_connection_utils.push_file(device_config[2], 'temp.pac', '/sdcard/Research/proxy.pac')
     rm_cmd = 'rm temp.pac'
     subprocess.call(rm_cmd.split())
 
@@ -193,6 +201,10 @@ def start_proxy(mode, page, time, replay_configurations, delay=0):
             server_mode = 'start_proxy'
         elif mode == 'delay_replay':
             server_mode = 'start_delay_replay_proxy'
+        elif mode == THIRD_PARTY_SPEEDUP:
+            server_mode = 'start_third_party_speedup_proxy'
+        elif mode == PROXY_WITHIN_REPLAY:
+            server_mode = 'start_proxy_within_replay'
 
         start_proxy_url = 'http://{0}:{1}/{2}?page={3}&time={4}'.format( \
                 replay_configurations[replay_config_utils.SERVER_HOSTNAME], \
@@ -236,6 +248,10 @@ def stop_proxy(mode, page, time, replay_configurations):
         server_mode = 'stop_proxy'
     elif mode == 'delay_replay':
         server_mode = 'stop_delay_replay_proxy'
+    elif mode == THIRD_PARTY_SPEEDUP:
+        server_mode = 'stop_third_party_speedup_proxy'
+    elif mode == PROXY_WITHIN_REPLAY:
+        server_mode = 'stop_proxy_within_replay'
 
     # Try every 10 iterations
     url = 'http://{0}:{1}/{2}?page={3}&time={4}'.format( \
@@ -340,6 +356,10 @@ def check_proxy_running(config, mode):
         server_check = 'is_record_proxy_running'
     elif mode == 'replay' or mode == 'per_packet_delay_replay':
         server_check = 'is_replay_proxy_running'
+    elif mode == THIRD_PARTY_SPEEDUP:
+        server_check = 'is_third_party_speedup_proxy_running'
+    elif mode == PROXY_WITHIN_REPLAY:
+        server_check = 'is_proxy_within_replay_running'
 
     url = 'http://{0}:{1}/{2}?http={3}'.format( \
                 config[replay_config_utils.SERVER_HOSTNAME], \
@@ -353,8 +373,10 @@ def check_proxy_running(config, mode):
 
 def check_proxy_stopped(config, mode):
     print 'Checking if proxy running'
-    if mode == 'record':
+    if mode == 'record' or mode == THIRD_PARTY_SPEEDUP:
         server_check = 'is_record_proxy_running'
+    elif mode == PROXY_WITHIN_REPLAY:
+        server_check = 'is_proxy_within_replay_running'
     elif mode == 'replay' or mode == 'per_packet_delay_replay':
         server_check = 'is_replay_proxy_running'
 
@@ -486,7 +508,7 @@ if __name__ == '__main__':
     parser.add_argument('replay_config_filename')
     parser.add_argument('device_name')
     parser.add_argument('iterations', type=int)
-    parser.add_argument('mode', choices=[ 'replay', 'delay_replay', 'per_packet_delay_replay', 'record' ])
+    parser.add_argument('mode', choices=[ 'replay', 'delay_replay', 'per_packet_delay_replay', 'record', THIRD_PARTY_SPEEDUP, PROXY_WITHIN_REPLAY ])
     parser.add_argument('output_dir')
     parser.add_argument('--delay', default=None)
     parser.add_argument('--http-version', default=2, type=int)

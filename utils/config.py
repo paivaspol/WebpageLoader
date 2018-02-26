@@ -24,6 +24,8 @@ RECORD_SCREEN = 'record-screen'
 NETWORK_BOTTLENECK = 'network-bottleneck'
 PRESERVE_CACHE = 'preserve-cache'
 HTTP_VERSION = 'http-version'
+REPLAY_MODE = 'replay-mode'
+DEVICE = 'device'
 
 # OPTIONAL FIELDS
 DESCRIPTION = 'description'
@@ -45,7 +47,9 @@ def populate_optional_fields(config_dict):
             PRESERVE_CACHE: 'false', 
             HTTP_VERSION: 2, 
             RECORD_SCREEN: 'false',
-            NETWORK_BOTTLENECK: 'false'
+            NETWORK_BOTTLENECK: 'false',
+            REPLAY_MODE: 'per_packet_delay_replay',
+            DEVICE: 'Nexus_6'
          }
     for f, v in optional_fields_vals.iteritems():
         if f not in config_dict:
@@ -73,11 +77,14 @@ def write_replay_env_config(configs):
         replay_env.write('build-prefix = {0}\n'.format(binary_dir))
         replay_env.write('mm-proxyreplay = /bin/mm-proxyreplay\n')
         replay_env.write('mm-http1-proxyreplay = /bin/mm-http1-proxyreplay\n')
+        replay_env.write('mm-http1-replay-no-proxy = /bin/mm-http1-proxyreplay-no-proxy\n')
         replay_env.write('nghttpx_port = 3000\n')
         replay_env.write('nghttpx_key = /certs/reverse_proxy_key.pem\n')
         replay_env.write('nghttpx_cert = /certs/reverse_proxy_cert.pem\n')
         replay_env.write('mm-phone-webrecord = /bin/mm-phone-webrecord\n')
+        replay_env.write('mm-third-party-speedup-proxy = /bin/mm-serialized-phone-webrecord-using-vpn\n')
         replay_env.write('mm-delayshell-with-port-forwarded = /bin/mm-delayshell-port-forwarded\n')
+        replay_env.write('mm-proxy-within-replay = /bin/mm-proxy-in-replay\n')
         replay_env.write('squid_port = 3128\n')
         replay_env.write('openvpn_port = 1194\n')
         replay_env.write('squid = /sbin/squid\n')
@@ -90,6 +97,8 @@ def write_replay_env_config(configs):
         replay_dir = configs[REPLAY_DIR]
 
         replay_env.write('dependency_directory_path = {0}\n'.format(dep_dir))
+        replay_env.write('third_party_speedup_prefetch_dir_path = {0}\n'.format(dep_dir))
+        # replay_env.write('third_party_speedup_prefetch_dir_path = {0}/home/vaspol/Research/MobileWebOptimization/third_party_accelerate/prefetch_resources/02_21\n')
         replay_env.write('base_record_dir = {0}\n'.format(record_dir))
         replay_env.write('base_result_dir = {0}\n'.format(replay_dir))
     return os.path.join(os.getcwd(), replay_env_filename)

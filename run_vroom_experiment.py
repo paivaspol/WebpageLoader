@@ -79,6 +79,7 @@ def run_replay_environment(config):
     # First, write the necessary replay env configs.
     binary_dir = config[config_util.BINARY_DIR] if config_util.BINARY_DIR in config else '/home/vaspol/Research/MobileWebOptimization/page_load_setup/build'
     replay_env_conf_path = config_util.write_replay_env_config(config)
+    print replay_env_conf_path
 
     # Start the replay environment as a daemon on one process.
     proc = subprocess.Popen('python {0} {1} {2}'.format(REPLAY_ENV_PATH, replay_env_conf_path, 5005), shell=True, preexec_fn=os.setsid)
@@ -111,7 +112,11 @@ def run_replay_driver(config):
     network_bottleneck = config[config_util.NETWORK_BOTTLENECK]
     preserve_cache = config[config_util.PRESERVE_CACHE]
     http_version = config[config_util.HTTP_VERSION]
-    command = 'python mahimahi_page_script.py {0} {1} Nexus_6_2_chromium {2} per_packet_delay_replay {3} --use-openvpn --pac-file-location http://{4}/config_testing.pac --page-time-mapping {5} --http-version {6} --fetch-server-side-logs --start-measurements both --collect-tracing --collect-console'.format(page_list, replay_driver_conf, iterations, experiment_output_dir, replay_hostname, page_to_timestamp, http_version)
+    mode = config[config_util.REPLAY_MODE]
+    device = config[config_util.DEVICE]
+
+    # command = 'python mahimahi_page_script.py {0} {1} Nexus_6_chromium {2} per_packet_delay_replay {3} --use-openvpn --pac-file-location http://{4}/config_testing.pac --page-time-mapping {5} --http-version {6} --fetch-server-side-logs --start-measurements both --collect-tracing --collect-console'.format(page_list, replay_driver_conf, iterations, experiment_output_dir, replay_hostname, page_to_timestamp, http_version)
+    command = 'python mahimahi_page_script.py {0} {1} {2} {3} {4} {5} --use-openvpn --pac-file-location http://{6}/config_testing.pac --page-time-mapping {7} --http-version {8} --fetch-server-side-logs --collect-tracing --collect-console'.format(page_list, replay_driver_conf, device, iterations, mode, experiment_output_dir, replay_hostname, page_to_timestamp, http_version)
     if with_dependencies != 'true':
         command += ' --without-dependencies'
     if record_screen == 'true':

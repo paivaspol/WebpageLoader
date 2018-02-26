@@ -26,7 +26,7 @@ DEVICE_UBUNTU = 'ubuntu'
 ANDROID_CHROME_INSTANCE = 'com.android.chrome/com.google.android.apps.chrome.Main'
 ANDROID_CHROMIUM_INSTANCE = 'org.chromium.chrome/com.google.android.apps.chrome.Main'
 MAC_CHROME_INSTANCE = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
-UBUNTU_CHROME_INSTANCE = '"/opt/google/chrome/google-chrome"'
+UBUNTU_CHROME_INSTANCE = '/opt/google/chrome/google-chrome'
 
 CHANGE_USER_AGENT = 'change_user_agent'
 SCREEN_SIZE = 'screen_size'
@@ -58,7 +58,7 @@ def start_chrome(device_configuration):
         # Run Chrome.
         print "Run experiment chrome"
         cmd = [ device_configuration[CHROME_INSTANCE] ]
-        args = '--disable-extensions --remote-debugging-port={0} --disable-logging --enable-devtools-experiments --user-data-dir=/tmp/chrome-{1} --no-first-run'.format(device_configuration[CHROME_DESKTOP_DEBUG_PORT], random.random())
+        args = '--disable-extensions --remote-debugging-port={0} --disable-logging --enable-devtools-experiments --user-data-dir=/tmp/chrome-{1} --no-first-run --headless'.format(device_configuration[CHROME_DESKTOP_DEBUG_PORT], random.random())
         if PAC_FILE_PATH in device_configuration:
             args += ' --proxy-pac-url={0}'.format(device_configuration[PAC_FILE_PATH])
         if IGNORE_CERTIFICATE_ERRORS in device_configuration:
@@ -165,7 +165,7 @@ def stop_tcpdump(device_configuration, sleep_before_kill=True):
     # print cmd
 
 def kill_process_on_phone(process_name, device_id):
-    cmd_base = 'adb -s {0} shell ps | grep {1} | awk \'{{ print $1 }}\' | xargs adb -s {0} shell "su -c kill -2"' # with busybox installed
+    cmd_base = 'adb -s {0} shell ps | grep {1} | awk \'{{ print $2 }}\' | xargs adb -s {0} shell "su -c kill -2"' # with busybox installed
     cmd = cmd_base.format(device_id, process_name)
     subprocess.call(cmd, shell=True)
 
@@ -236,7 +236,7 @@ def get_device_configuration(config_reader, device):
     elif device_type == DEVICE_UBUNTU:
         device_config[CHROME_DESKTOP_DEBUG_PORT] = int(config_reader.get(device, CHROME_DESKTOP_DEBUG_PORT))
         device_config[CHROME_INSTANCE] = UBUNTU_CHROME_INSTANCE
-        if config_reader.get(device, CHANGE_USER_AGENT) == 'True':
+        if config_reader.has_option(device, CHANGE_USER_AGENT) and config_reader.get(device, CHANGE_USER_AGENT) == 'True':
             device_config[USER_AGENT] = USER_AGENT_STR
         if config_reader.has_option(device, PAC_FILE_PATH):
             device_config[PAC_FILE_PATH] = config_reader.get(device, PAC_FILE_PATH)

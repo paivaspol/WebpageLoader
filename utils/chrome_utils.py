@@ -17,6 +17,7 @@ def close_all_tabs(device_configuration):
         base_url = 'http://localhost:{0}/json/close/{1}'
         url = base_url.format(get_debugging_port(device_configuration), page_id)
         response = requests.get(url)
+    print 'Cleared all tabs'
 
 def get_debugging_port(device_configuration):
     '''
@@ -46,13 +47,21 @@ def get_debugging_url(device_configuration):
     url = base_url.format(get_debugging_port(device_configuration))
     response = requests.get(url)
     response_json = json.loads(response.text)
-    if len(response_json) == 0:
+    target_tab = None
+    for tab in response_json:
+        if tab['type'] == 'service_worker':
+            continue
+
+    if target_tab is None:
+        # Clear all existing pages.
+        close_all_tabs(device_configuration)
+
         create_tab(device_configuration)
         base_url = 'http://localhost:{0}/json'
         url = base_url.format(get_debugging_port(device_configuration))
         response = requests.get(url)
-        response_json = json.loads(response.text)
-    return extract_debugging_url_and_page_id(response_json[0])
+        target_tab = json.loads(response.text)
+    return extract_debugging_url_and_page_id(target_tab[0])
 
 def close_tab(device_configuration, page_id):
     '''

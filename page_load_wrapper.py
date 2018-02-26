@@ -33,7 +33,7 @@ HTTP_PREFIX = 'http://'
 HTTPS_PREFIX = 'https://'
 WWW_PREFIX = 'www.'
 
-TIMEOUT = 1 * 60 # set to 3 minutes
+TIMEOUT = 2 * 60 # set to 3 minutes
 # TIMEOUT = 1
 PAUSE = 2
 BUFFER_FOR_TRACE = 5
@@ -42,6 +42,7 @@ TRY_LIMIT = 5
 def main(pages_file, num_repetitions, output_dir, start_measurements, device, disable_tracing, record_contents):
     signal.signal(signal.SIGALRM, timeout_handler) # Setup the timeout handler
     pages = common_module.get_pages(pages_file)
+    print 'total pages: {0}'.format(len(pages))
     if start_measurements and not disable_tracing:
         load_pages_with_measurement_and_tracing_enabled(pages, output_dir, num_repetitions, device, record_contents)
     elif not start_measurements and disable_tracing:
@@ -258,9 +259,9 @@ def load_pages_with_measurement_and_tracing_enabled(pages, output_dir, num_repet
                 chrome_utils.close_all_tabs(device_config_obj)
                 initialize_browser(device)
                 pages.append(page)
-                # phone_connection_utils.stop_taking_screenshopts(device_config_obj)
                 break
             sleep(PAUSE)
+
 
 def initialize_browser(device):
     # Get the device configuration
@@ -307,7 +308,8 @@ def load_page(raw_line, run_index, output_dir, start_measurements, device, disab
     device, device_config = get_device_config(device)
 
     line = raw_line.strip()
-    cmd = 'python get_chrome_messages.py {1} {2} {0} --output-dir {3}'.format(line, device_config, device, output_dir_run) 
+    chrome_msg_path = os.path.join(args.current_path, 'get_chrome_messages.py')
+    cmd = 'python {0} {1} {2} {3} --output-dir {4}'.format(chrome_msg_path, device_config, device, line, output_dir_run) 
     if disable_tracing:
         cmd += ' --disable-tracing'
     if record_contents:
@@ -316,8 +318,6 @@ def load_page(raw_line, run_index, output_dir, start_measurements, device, disab
         cmd += ' --collect-console'
     if args.collect_tracing:
         cmd += ' --collect-tracing'
-    # if run_index > 0:
-    #     cmd += ' --reload-page'
     subprocess.Popen(cmd, shell=True).wait()
 
 def bring_chrome_to_foreground(device):

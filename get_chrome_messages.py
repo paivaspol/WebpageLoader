@@ -153,7 +153,7 @@ def callback_on_page_done_streaming(debugging_socket):
         with open(os.path.join(base_dir, 'root_html'), 'wb') as output_file:
             output_file.write(body)
     new_debugging_websocket.close()
-    chrome_utils.close_tab(debugging_socket.device_configuration, debugging_socket.device_configuration['page_id'])
+    # chrome_utils.close_tab(debugging_socket.device_configuration, debugging_socket.device_configuration['page_id'])
 
 def beautify_html(original_html):
     return BeautifulSoup(original_html, 'html.parser').prettify().encode('utf-8')

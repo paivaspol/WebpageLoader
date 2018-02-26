@@ -7,6 +7,7 @@ import common_module
 import json
 import os
 import tempfile
+import time
 import subprocess
 import urllib
 
@@ -33,7 +34,15 @@ def main():
                 os.path.join(config['prefetchUrlsDir'], escaped_url), \
                 os.path.join(config['requestOrderDir'], escaped_url) \
         ]
-        proc = subprocess.Popen(start_proxy_command)
+        print ' '.join(start_proxy_command)
+        subprocess.Popen(start_proxy_command)
+        time.sleep(2)
+        ps_cmd = 'ps aux | grep "go"'
+        proc = subprocess.Popen(ps_cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        stdout, stderr = proc.communicate()
+        print stdout
+        print ''
+        print stderr
 
         # Generate the URL for prefetching.
         redirectUrl = GenerateRedirectURL(config[CONFIG_PREFETCH_SERVER], url)
@@ -59,7 +68,7 @@ def RemovePrefetchServerPrefixes(config, redirect_url, escaped_page):
         iter_dir = os.path.join(config['outputDir'], str(i))
         for p in os.listdir(iter_dir):
             prefixed_page = common_module.escape_page(redirect_url)
-            page_dir = os.path.join(iter_dir, p)
+            page_dir = os.path.join(iter_dir, prefixed_page)
 
             # Change the file name that contains the prefetch server.
             for f in page_dir:
@@ -91,6 +100,7 @@ def SetupPacfile(config):
     pac_filename = 'tmp.pac'
     with open(pac_filename, 'w') as output_file:
         output_file.write(str(pacfile))
+    print 'Pushing PAC file to phone'
     cmd = 'adb -s {0} push {1} {2}'.format(config['deviceSerial'], pac_filename, '/sdcard/Research/proxy.pac')
     subprocess.call(cmd.split())
     rm_cmd = 'rm ' + pac_filename

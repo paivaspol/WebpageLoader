@@ -208,7 +208,7 @@ def get_process_ids(device, proc_name):
     result = []
     for l in lines:
         if 'grep' not in l and len(l) > 0:
-            result.append(l.strip().split()[0])
+            result.append(l.strip().split()[1])
     return result
 
 def pin_process_to_cpu(device, bitmask, proc_id):

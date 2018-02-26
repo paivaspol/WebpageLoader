@@ -1,5 +1,4 @@
 http://android.livescore.com/ http://android.livescore.com/
-http://abcnews.go.com/ http://abcnews.go.com/
 http://fortune.com/ http://fortune.com/
 http://m.accuweather.com/ http://m.accuweather.com/
 http://m.foxnews.com/ http://m.foxnews.com/
@@ -12,7 +11,6 @@ http://nypost.com/ http://nypost.com/
 https://m.reddit.com/ https://m.reddit.com/
 https://news.google.com/ https://news.google.com/
 http://sports.yahoo.com/ http://sports.yahoo.com/
-# https://weather.com/ https://weather.com/
 https://www.nhl.com/ https://www.nhl.com/
 https://www.theguardian.com/us https://www.theguardian.com/us
 https://www.wunderground.com/ https://www.wunderground.com/
@@ -31,7 +29,6 @@ http://www.deadspin.com/ http://deadspin.com/
 http://www.espn.com/ http://www.espn.com/
 http://www.espn.com/nfl/ http://www.espn.com/nfl/
 http://www.espncricinfo.com/ http://www.espncricinfo.com/
-# http://www.espnfc.us/ http://www.espnfc.us/
 http://www.espn.go.com/mlb/ http://www.espn.com/mlb/
 http://www.eurosport.com/ http://www.eurosport.com/
 http://www.fifa.com/ http://m.fifa.com/index.html
@@ -41,7 +38,6 @@ http://www.forbes.com/forbes/welcome/ http://www.forbes.com/forbes/welcome/
 http://www.formula1.com/ http://www.formula1.com/
 http://www.foxsports.com/ http://www.foxsports.com/
 http://www.hattrick.org/ https://m.hattrick.org/
-# http://www.letour.fr/ http://www.letour.fr/us/
 http://www.livescore.com/ http://www.livescore.com/
 http://www.manutd.com/ http://www.manutd.com/
 http://www.milb.com/ http://m.milb.com/
@@ -70,3 +66,4 @@ http://www.usnews.com/ http://www.usnews.com/
 http://www.weather.gov/ http://www.weather.gov/
 http://www.wimbledon.com/ http://www.wimbledon.com/index.html
 http://www.wwe.com/ http://www.wwe.com/
+http://abcnews.go.com/ http://abcnews.go.com/
