@@ -13,6 +13,7 @@ REQUEST_ID = 'requestId'
 TIMESTAMP = 'timestamp'
 
 WAIT = 1.5
+PAGE_STABLE_THRESHOLD = 5000 # 2s virtual time budget
 
 HTTP_PREFIX = 'http://'
 HTTPS_PREFIX = 'https://'
@@ -30,7 +31,7 @@ def escape_page(url):
 
 class ChromeRDPWebsocketStreaming(object):
 
-    def __init__(self, url, target_url, device_configuration, user_agent_str, collect_console, collect_tracing, callback_on_network_event, callback_page_done, preserve_cache):
+    def __init__(self, url, target_url, device_configuration, user_agent_str, collect_console, collect_tracing, callback_on_network_event, callback_page_done, preserve_cache, use_virtual_time_budget):
         '''
         Initialize the object. 
         url - the websocket url
@@ -44,6 +45,8 @@ class ChromeRDPWebsocketStreaming(object):
         self.loadEventFiredMs = None
         self.tracingCollectionCompleted = False
         self.start_page = False
+        self.use_virtual_time_budget = use_virtual_time_budget
+        self.virtual_time_expired = False
 
         self.url = target_url       # The URL to navigate to.
         self.collect_console = collect_console
@@ -72,6 +75,7 @@ class ChromeRDPWebsocketStreaming(object):
         message_obj = json.loads(message)
         self.callback_on_network_event(self, message_obj, message)
         # self.tracingCollectionCompleted = True
+        print message_obj
         if METHOD in message_obj and message_obj[METHOD].startswith('Network'):
             if message_obj[METHOD] == 'Network.requestWillBeSent' and \
                 escape_page(message_obj[PARAMS]['request']['url']) == escape_page(self.url):
@@ -95,6 +99,11 @@ class ChromeRDPWebsocketStreaming(object):
         elif METHOD in message_obj and message_obj[METHOD].startswith('Tracing'):
             if message_obj[METHOD] == 'Tracing.tracingComplete':
                 self.tracingCollectionCompleted = True
+        elif METHOD in message_obj and message_obj[METHOD].startswith('Emulation'):
+            print message_obj
+            if message_obj[METHOD] == 'Emulation.virtualTimeBudgetExpired':
+                print 'Virtual time expired'
+                self.virtual_time_expired = True
 
         #print '{0} {1} {2}'.format(self.originalRequestMs, self.domContentEventFiredMs, self.loadEventFiredMs)
         #if self.originalRequestMs is not None and \
@@ -103,12 +112,15 @@ class ChromeRDPWebsocketStreaming(object):
         #    if self.collect_tracing and self.tracing_started:
         #        self.stop_trace_collection(self.ws)
 
-        if self.originalRequestMs is not None and \
+        if (not self.use_virtual_time_budget and \
+            (self.originalRequestMs is not None and \
             self.domContentEventFiredMs is not None and \
             self.loadEventFiredMs is not None and \
             (not self.collect_tracing or \
             (self.collect_tracing and self.tracingCollectionCompleted)) and \
-            self.callback_page_done is not None:
+            self.callback_page_done is not None)) or \
+            (self.use_virtual_time_budget and \
+            self.virtual_time_expired):
                 self.disable_network_tracking(self.ws)
                 self.disable_page_tracking(self.ws)
                 if self.collect_console:
@@ -150,14 +162,16 @@ class ChromeRDPWebsocketStreaming(object):
         if not self.preserve_cache:
             self.clear_cache(self.ws)
         
-        # self.enable_trace_collection(self.ws)
-        # navigation_utils.navigate_to_page(self.ws, 'about:blank')
         sleep(WAIT)
 
         if self.collect_tracing:
             self.enable_trace_collection(self.ws)
+
         print 'navigating to url: ' + str(self.url)
         navigation_utils.navigate_to_page(self.ws, self.url)
+
+        if self.use_virtual_time_budget:
+            self.set_virtual_time_budget(self.ws)
 
     def close_connection(self):
         self.ws.close()
@@ -360,3 +374,18 @@ class ChromeRDPWebsocketStreaming(object):
         Returns the debugging url.
         '''
         return self.debugging_url
+
+    def set_virtual_time_budget(self, debug_connection):
+        '''
+        Sets up the virtual time budget.
+        '''
+        # debug_connection.send(json.dumps({ 'id': 315, 'method': 'Emulation.canEmulate' }))
+        setup_virtual_time_budget = { 'id': 314, \
+                'method': 'Emulation.setVirtualTimePolicy', \
+                'params': { \
+                    "policy": "pauseIfNetworkFetchesPending", \
+                    "budget": PAGE_STABLE_THRESHOLD \
+                } \
+        }
+        print 'set virtual time budget: ' + json.dumps(setup_virtual_time_budget)
+        debug_connection.send(json.dumps(setup_virtual_time_budget))
