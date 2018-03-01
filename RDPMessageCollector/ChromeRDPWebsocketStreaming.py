@@ -75,7 +75,7 @@ class ChromeRDPWebsocketStreaming(object):
         message_obj = json.loads(message)
         self.callback_on_network_event(self, message_obj, message)
         # self.tracingCollectionCompleted = True
-        print message_obj
+        # print message_obj
         if METHOD in message_obj and message_obj[METHOD].startswith('Network'):
             if message_obj[METHOD] == 'Network.requestWillBeSent' and \
                 escape_page(message_obj[PARAMS]['request']['url']) == escape_page(self.url):
@@ -100,9 +100,9 @@ class ChromeRDPWebsocketStreaming(object):
             if message_obj[METHOD] == 'Tracing.tracingComplete':
                 self.tracingCollectionCompleted = True
         elif METHOD in message_obj and message_obj[METHOD].startswith('Emulation'):
-            print message_obj
+            # print message_obj
             if message_obj[METHOD] == 'Emulation.virtualTimeBudgetExpired':
-                print 'Virtual time expired'
+                # print 'Virtual time expired'
                 self.virtual_time_expired = True
 
         #print '{0} {1} {2}'.format(self.originalRequestMs, self.domContentEventFiredMs, self.loadEventFiredMs)
@@ -387,5 +387,5 @@ class ChromeRDPWebsocketStreaming(object):
                     "budget": PAGE_STABLE_THRESHOLD \
                 } \
         }
-        print 'set virtual time budget: ' + json.dumps(setup_virtual_time_budget)
+        # print 'set virtual time budget: ' + json.dumps(setup_virtual_time_budget)
         debug_connection.send(json.dumps(setup_virtual_time_budget))
