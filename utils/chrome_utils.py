@@ -1,7 +1,7 @@
 import simplejson as json
 import requests
 
-import phone_connection_utils
+import config
 
 def close_all_tabs(device_configuration):
     '''
@@ -9,25 +9,28 @@ def close_all_tabs(device_configuration):
     '''
     base_url = 'http://localhost:{0}/json'
     url = base_url.format(get_debugging_port(device_configuration))
-    response = requests.get(url)
-    response_json = json.loads(response.text)
-    for i in range(0, len(response_json) - 1):
-        response = response_json[i]
-        page_id = response['id']
-        base_url = 'http://localhost:{0}/json/close/{1}'
-        url = base_url.format(get_debugging_port(device_configuration), page_id)
+    try:
         response = requests.get(url)
-    print 'Cleared all tabs'
+        response_json = json.loads(response.text)
+        for i in range(0, len(response_json) - 1):
+            response = response_json[i]
+            page_id = response['id']
+            base_url = 'http://localhost:{0}/json/close/{1}'
+            url = base_url.format(get_debugging_port(device_configuration), page_id)
+            response = requests.get(url)
+        print 'Cleared all tabs'
+    except Exception as e:
+        print 'Got exception: {0} but absorbing it...'.format(e)
 
 def get_debugging_port(device_configuration):
     '''
     Returns the correct Chrome debug port.
     '''
-    if device_configuration[phone_connection_utils.DEVICE_TYPE] == phone_connection_utils.DEVICE_PHONE:
-        return device_configuration[phone_connection_utils.ADB_PORT]
-    elif device_configuration[phone_connection_utils.DEVICE_TYPE] == phone_connection_utils.DEVICE_MAC or \
-        device_configuration[phone_connection_utils.DEVICE_TYPE] == phone_connection_utils.DEVICE_UBUNTU:
-        return device_configuration[phone_connection_utils.CHROME_DESKTOP_DEBUG_PORT]
+    if device_configuration[config.DEVICE_TYPE] == config.DEVICE_PHONE:
+        return device_configuration[config.ADB_PORT]
+    elif device_configuration[config.DEVICE_TYPE] == config.DEVICE_MAC or \
+        device_configuration[config.DEVICE_TYPE] == config.DEVICE_UBUNTU:
+        return device_configuration[config.CHROME_DESKTOP_DEBUG_PORT]
 
 def create_tab(device_configuration):
     '''
@@ -74,5 +77,5 @@ def close_tab(device_configuration, page_id):
 
 def extract_debugging_url_and_page_id(response_json):
     page_id = response_json['id'] if 'id' in response_json else None
-    debugging_url = response_json[phone_connection_utils.WEB_SOCKET_DEBUGGER_URL]
+    debugging_url = response_json[config.WEB_SOCKET_DEBUGGER_URL]
     return debugging_url, page_id

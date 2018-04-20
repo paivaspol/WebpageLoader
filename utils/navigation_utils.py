@@ -84,6 +84,15 @@ def get_modified_html(ws):
     result_object = json.loads(ws.recv())
     return result_object['result']['result']['value'].encode('utf-8')
 
+
+def get_dom_tree(ws):
+    '''
+    Returns the DOM tree in an array.
+    '''
+    get_dom = json.dumps({ 'id': 101, 'method': 'DOM.getDocument', 'params': { 'depth': -1 } })
+    ws.send(get_dom)
+    return ws.recv()
+
 def get_start_end_time(debugging_url):
     # print 'debugging_url: ' + debugging_url
     ws = websocket.create_connection(debugging_url)

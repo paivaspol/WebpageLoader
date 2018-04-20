@@ -102,3 +102,89 @@ def write_replay_env_config(configs):
         replay_env.write('base_record_dir = {0}\n'.format(record_dir))
         replay_env.write('base_result_dir = {0}\n'.format(replay_dir))
     return os.path.join(os.getcwd(), replay_env_filename)
+
+
+##########################################
+# Device Configurations
+##########################################
+from ConfigParser import ConfigParser
+
+ADB_PORT = 'adb_port'
+CHROME_DESKTOP_DEBUG_PORT = 'chrome_desktop_debugging_port'
+CHROME_INSTANCE = 'chrome_instance'
+DEVICE_ID = 'id'
+DEVICE_TYPE = 'type'
+IP = 'ip'
+USE_CHROMIUM = 'use_chromium'
+USER_DATA_DIR = 'user_data_dir'
+WEB_SOCKET_DEBUGGER_URL = 'webSocketDebuggerUrl'
+
+DEVICE_PHONE = 'phone'
+DEVICE_MAC = 'mac'
+DEVICE_UBUNTU = 'ubuntu'
+
+CHROME_RUNNING_MODE = 'mode'
+EXTENSION = 'extension'
+IGNORE_CERTIFICATE_ERRORS = 'ignore_certificate_errors'
+PAC_FILE_PATH = 'pac_file_path'
+SCREEN_SIZE = 'screen_size'
+USER_AGENT = 'user_agent'
+
+# Hardcoded values for the Chrome instances.
+ANDROID_CHROME_INSTANCE = 'com.android.chrome/com.google.android.apps.chrome.Main'
+ANDROID_CHROMIUM_INSTANCE = 'org.chromium.chrome/com.google.android.apps.chrome.Main'
+MAC_CHROME_INSTANCE = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
+UBUNTU_CHROME_INSTANCE = '/opt/google/chrome/google-chrome'
+
+
+def get_device_configuration(config_reader, device):
+    '''
+    Constructs a device configuration map.
+    '''
+    def get_config(config_reader, section, key, default):
+        '''
+        Returns the string if the key exists in the config_reader_obj otherwise returns default value specified.
+        '''
+        if config_reader.has_option(section, key):
+            return config_reader.get(section, key)
+        return default
+
+    def populate_if_exists(device_config, config_reader, section, key):
+        '''
+        Populates device_config with the value in the config_reader if the key exists.
+        '''
+        if config_reader.has_option(section, key):
+            device_config[key] = config_reader.get(section, key)
+
+    device_config = dict()
+    device_config[IP] = config_reader.get(device, IP)
+    device_type = config_reader.get(device, DEVICE_TYPE)
+    device_config[DEVICE_TYPE] = device_type
+    if device_type == DEVICE_PHONE:
+        device_config[ADB_PORT] = int(config_reader.get(device, ADB_PORT))
+        device_config[CHROME_INSTANCE] = ANDROID_CHROMIUM_INSTANCE if config_reader.get(device, USE_CHROMIUM) == 'True' else ANDROID_CHROME_INSTANCE
+        device_config[DEVICE_ID] = config_reader.get(device, DEVICE_ID)
+
+    elif device_type == DEVICE_MAC:
+        device_config[CHROME_DESKTOP_DEBUG_PORT] = int(config_reader.get(device, CHROME_DESKTOP_DEBUG_PORT))
+        device_config[CHROME_INSTANCE] = MAC_CHROME_INSTANCE
+        device_config[USER_AGENT] = get_config(config_reader, device, USER_AGENT, None)
+        populate_if_exists(device_config, config_reader, device, PAC_FILE_PATH)
+    elif device_type == DEVICE_UBUNTU:
+        device_config[CHROME_DESKTOP_DEBUG_PORT] = int(config_reader.get(device, CHROME_DESKTOP_DEBUG_PORT))
+        device_config[CHROME_INSTANCE] = UBUNTU_CHROME_INSTANCE
+        device_config[USER_AGENT] = get_config(config_reader, device, USER_AGENT, None)
+        populate_if_exists(device_config, config_reader, device, PAC_FILE_PATH)
+        populate_if_exists(device_config, config_reader, device, IGNORE_CERTIFICATE_ERRORS)
+        device_config[USER_DATA_DIR] = get_config(config_reader, device, USER_DATA_DIR, 'random')
+        device_config[CHROME_RUNNING_MODE] = get_config(config_reader, device, CHROME_RUNNING_MODE, 'headless')
+
+        if config_reader.has_option(device, SCREEN_SIZE):
+            screen_configs = config_reader.get(device, SCREEN_SIZE).split('$')
+            screen_config_dict = dict()
+            for screen_config in screen_configs:
+                key, value = screen_config.split("=")
+                screen_config_dict[key] = value
+            device_config[SCREEN_SIZE] = screen_config_dict
+
+    return device_config

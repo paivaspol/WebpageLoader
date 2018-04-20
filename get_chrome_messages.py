@@ -8,9 +8,7 @@ import os
 import websocket
 import shutil
 
-from utils import phone_connection_utils
-from utils import navigation_utils
-from utils import chrome_utils
+from utils import phone_connection_utils, navigation_utils, chrome_utils, config
 
 from argparse import ArgumentParser
 from ConfigParser import ConfigParser   # Parsing configuration file.
@@ -30,8 +28,7 @@ def main(device_configuration, url, disable_tracing, reload_page):
     '''
     output_directory = create_output_directory_for_url(url)
     
-    if device_configuration[phone_connection_utils.DEVICE_TYPE] != phone_connection_utils.DEVICE_MAC and \
-        device_configuration[phone_connection_utils.DEVICE_TYPE] != phone_connection_utils.DEVICE_UBUNTU:
+    if not is_desktop_device(device_configuration):
         cpu_chrome_running_on = phone_connection_utils.get_cpu_running_chrome(device_configuration)
         output_cpu_running_chrome(output_directory, cpu_chrome_running_on)
 
@@ -48,10 +45,10 @@ def main(device_configuration, url, disable_tracing, reload_page):
     device_configuration['page_id'] = page_id
     user_agent_str = None
     screen_size_config = None
-    if phone_connection_utils.USER_AGENT in device_configuration:
-        user_agent_str = device_configuration[phone_connection_utils.USER_AGENT]
-    if phone_connection_utils.SCREEN_SIZE in device_configuration:
-        screen_size_config = device_configuration[phone_connection_utils.SCREEN_SIZE]
+    if config.USER_AGENT in device_configuration:
+        user_agent_str = device_configuration[config.USER_AGENT]
+    if config.SCREEN_SIZE in device_configuration:
+        screen_size_config = device_configuration[config.SCREEN_SIZE]
 
     if disable_tracing:
         chrome_rdp_object_without_tracing = ChromeRDPWithoutTracing(debugging_url, url, user_agent_str, screen_size_config)
@@ -129,6 +126,7 @@ def callback_on_received_event(debugging_socket, network_message, network_messag
         with open(filename, 'ab') as output_file:
             output_file.write('{0}\n'.format(network_message_string))
 
+
 def callback_on_page_done_streaming(debugging_socket):
     debugging_socket.close_connection()
     print 'Closed debugging socket connection'
@@ -145,61 +143,46 @@ def callback_on_page_done_streaming(debugging_socket):
     # print 'output dir: ' + base_dir
     print 'Load time: ' + str((start_time, end_time)) + ' ' + str((end_time - start_time))
     write_page_start_end_time(final_url, base_dir, start_time, end_time, dom_content_loaded, -1, -1)
-    # sleep(0.5)
-    # navigation_utils.navigate_to_page(new_debugging_websocket, 'about:blank')
-    # sleep(0.5)
+    print 'getting DOM tree'
     if args.record_content:
         body = navigation_utils.get_modified_html(new_debugging_websocket)
         with open(os.path.join(base_dir, 'root_html'), 'wb') as output_file:
             output_file.write(body)
-    new_debugging_websocket.close()
-    # chrome_utils.close_tab(debugging_socket.device_configuration, debugging_socket.device_configuration['page_id'])
 
-def beautify_html(original_html):
-    return BeautifulSoup(original_html, 'html.parser').prettify().encode('utf-8')
+    if args.get_dom:
+        dom = navigation_utils.get_dom_tree(new_debugging_websocket)
+        with open(os.path.join(base_dir, 'dom'), 'wb') as output_file:
+            output_file.write(dom)
+
+
+    navigation_utils.navigate_to_page(new_debugging_websocket, 'about:blank')
+    # sleep(0.2)
+    new_debugging_websocket.close()
+
+    clean_user_dir()
+
+
+def clean_user_dir():
+    '''
+    Clears any temporary user data dir that was created during this experiment run.
+    '''
+    for d in os.listdir('/tmp/'):
+        if 'chrome-' not in d:
+            continue
+        rm_cmd = 'rm -r ' + os.path.join('/tmp/', d)
+        subprocess.call(rm_cmd, shell=True)
+
+
+def is_desktop_device(device_configuration):
+    return device_configuration[config.DEVICE_TYPE] == config.DEVICE_MAC or \
+        device_configuration[config.DEVICE_TYPE] == config.DEVICE_UBUNTU
+
 
 def write_page_start_end_time(escaped_url, base_dir, start_time, end_time, dom_content_loaded, original_request_ts=-1, load_event_ts=-1):
     start_end_time_filename = os.path.join(base_dir, 'start_end_time_' + escaped_url)
     with open(start_end_time_filename, 'wb') as output_file:
         output_file.write('{0} {1} {2} {3} {4} {5}\n'.format(escaped_url, start_time, end_time, original_request_ts, load_event_ts, dom_content_loaded))
 
-def output_response_body(debugging_websocket, request_ids, output_dir):
-    '''
-    Writes the responses of all the requests to files. Also write the mapping
-    between request id to url to another file.
-    '''
-    responses_output_dir = output_dir 
-    request_id_mapping_filename = os.path.join(responses_output_dir, 'request_id_to_url.txt')
-    with open(request_id_mapping_filename, 'wb') as output_file:
-        for request_id in request_ids:
-            request_id, url, response_body, is_request_to_index = request_ids[request_id]
-            output_file.write('{0} {1}\n'.format(request_id, url))
-            response_filename = os.path.join(responses_output_dir, request_id)
-            if is_request_to_index:
-                response_filename = os.path.join(responses_output_dir, 'index.html')
-                
-            with open(response_filename, 'wb') as response_output_file:
-                response_output_file.write(beautify_html(response_body))
-
-def get_resource_tree(debugging_url):
-    try:
-        ws = websocket.create_connection(debugging_url)
-        get_resource_tree = json.dumps({ "id": 6, "method": "Page.getResourceTree", "params": { }})
-        # print 'navigation starts: ' + str(navigation_starts)
-        ws.send(get_resource_tree)
-        resource_tree = json.loads(ws.recv())
-        # print 'start time: ' + str(nav_starts_result)
-        print resource_tree
-    except Exception as e:
-        pass
-    finally:
-        ws.close()
-
-def clear_directory(directory):
-    files = os.listdir(directory)
-    for f in files:
-        if os.isfile(f):
-            os.remove(os.path.join(directory, f))
 
 if __name__ == '__main__':
     argparser = ArgumentParser()
@@ -216,6 +199,7 @@ if __name__ == '__main__':
     argparser.add_argument('--collect-tracing', default=False, action='store_true')
     argparser.add_argument('--preserve-cache', default=False, action='store_true')
     argparser.add_argument('--defer-stop', default=False, action='store_true')
+    argparser.add_argument('--get-dom', default=False, action='store_true')
     args = argparser.parse_args()
 
     # Setup the config filename
@@ -224,5 +208,5 @@ if __name__ == '__main__':
     OUTPUT_DIR = args.output_dir
 
     # Get the device configuration.
-    device_config = phone_connection_utils.get_device_configuration(config_reader, args.device)
+    device_config = config.get_device_configuration(config_reader, args.device)
     main(device_config, args.url, args.disable_tracing, args.reload_page)

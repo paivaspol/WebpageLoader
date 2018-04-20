@@ -11,8 +11,7 @@ from ConfigParser import ConfigParser
 from time import sleep
 from PageLoadException import PageLoadException
 
-from utils import phone_connection_utils
-from utils import chrome_utils
+from utils import phone_connection_utils, chrome_utils, config
 
 NEXUS_6_CONFIG = '/device_config/nexus6.cfg'
 NEXUS_6 = 'Nexus_6'
@@ -28,6 +27,10 @@ MAC_CONFIG = '/device_config/mac.cfg'
 MAC = 'mac'
 UBUNTU_CONFIG = '/device_config/ubuntu.cfg'
 UBUNTU = 'ubuntu'
+UBUNTU_WITH_COOKIES_CONFIG = '/device_config/ubuntu_with_cookies.cfg'
+UBUNTU_WITH_COOKIES = 'ubuntu_with_cookies'
+PIXEL2_CONFIG = '/device_config/pixel2.cfg'
+PIXEL2 = 'pixel2'
 
 HTTP_PREFIX = 'http://'
 HTTPS_PREFIX = 'https://'
@@ -284,7 +287,7 @@ def initialize_browser(device):
 def get_device_config_obj(device, device_config):
     config_reader = ConfigParser()
     config_reader.read(device_config)
-    device_config_obj = phone_connection_utils.get_device_configuration(config_reader, device)
+    device_config_obj = config.get_device_configuration(config_reader, device)
     return device_config_obj
 
 def shutdown_browser(device):
@@ -320,6 +323,8 @@ def load_page(raw_line, run_index, output_dir, start_measurements, device, disab
         cmd += ' --collect-tracing'
     if args.defer_stop:
         cmd += ' --defer-stop'
+    if args.get_dom:
+        cmd += ' --get-dom'
     subprocess.Popen(cmd, shell=True).wait()
 
 def bring_chrome_to_foreground(device):
@@ -359,6 +364,10 @@ def get_device_config(device):
         return NEXUS_6_2_CHROMIUM, args.current_path + NEXUS_6_2_CHROMIUM_CONFIG
     elif device == UBUNTU:
         return UBUNTU, args.current_path + UBUNTU_CONFIG
+    elif device == UBUNTU_WITH_COOKIES:
+        return UBUNTU_WITH_COOKIES, args.current_path + UBUNTU_CONFIG_WITH_COOKIES
+    elif device == PIXEL2:
+        return PIXEL2, args.current_path + PIXEL2_CONFIG
     else:
         print 'available devices: {0}, {1}, {2}, {3}, {4}, {5}, {6}'.format(NEXUS_6, NEXUS_6_2, NEXUS_5, NEXUS_6_CHROMIUM, NEXUS_6_2_CHROMIUM, MAC, UBUNTU)
         exit()
@@ -375,6 +384,7 @@ if __name__ == '__main__':
     parser.add_argument('--collect-console', default=False, action='store_true')
     parser.add_argument('--collect-tracing', default=False, action='store_true')
     parser.add_argument('--defer-stop', default=False, action='store_true')
+    parser.add_argument('--get-dom', default=False, action='store_true')
     parser.add_argument('--current-path', default='.')
     args = parser.parse_args()
     main(args.pages_file, args.num_repetitions, args.output_dir, args.start_measurements, args.use_device, args.disable_tracing, args.record_content)
