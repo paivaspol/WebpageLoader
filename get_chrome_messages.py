@@ -22,24 +22,16 @@ WWW_PREFIX = 'www.'
 OUTPUT_DIR = None
 PAGE_ID = None
 
-def main(device_configuration, url, disable_tracing, reload_page):
+def main(device_configuration, url, reload_page):
     '''
     The main workflow of the script.
     '''
-    output_directory = create_output_directory_for_url(url)
-    
+    output_directory = remove_and_create_output_directory_for_url(url)
     if not is_desktop_device(device_configuration):
         cpu_chrome_running_on = phone_connection_utils.get_cpu_running_chrome(device_configuration)
         output_cpu_running_chrome(output_directory, cpu_chrome_running_on)
 
-    got_debugging_url = False
-    while not got_debugging_url:
-        try:
-            debugging_url, page_id = chrome_utils.get_debugging_url(device_configuration)
-            print 'Debugging URL: ' + debugging_url + ' page_id: ' + page_id
-            got_debugging_url = True
-        except (requests.exceptions.ConnectionError, KeyError) as e:
-            pass
+    debugging_url, page_id = get_debugging_url(device_configuration)
 
     print 'Connected to Chrome...'
     device_configuration['page_id'] = page_id
@@ -50,34 +42,32 @@ def main(device_configuration, url, disable_tracing, reload_page):
     if config.SCREEN_SIZE in device_configuration:
         screen_size_config = device_configuration[config.SCREEN_SIZE]
 
-    if disable_tracing:
-        chrome_rdp_object_without_tracing = ChromeRDPWithoutTracing(debugging_url, url, user_agent_str, screen_size_config)
-        start_time, end_time = chrome_rdp_object_without_tracing.navigate_to_page(url, reload_page)
-        print str((start_time, end_time)) + ' ' + str((end_time - start_time))
-        escaped_url = common_module.escape_page(url)
-        print 'output_directory: ' + output_directory
-        write_page_start_end_time(escaped_url, output_directory, start_time, end_time, -1)
+    if args.get_dependency_baseline:
+        debugging_socket = ChromeRDPWebsocketStreaming(debugging_url, url, user_agent_str, args.collect_console, args.collect_tracing, callback_on_received_event, None, args.preserve_cache, args.defer_stop, args.get_dom)
+        def timeout_handler(a, b):
+            callback_on_page_done_streaming(debugging_socket)
+            sys.exit(0)
+
+        print 'Setting SIGTERM handler'
+        signal.signal(signal.SIGTERM, timeout_handler)
     else:
-        # First, remove the network file, if it exists
-        escaped_url = common_module.escape_page(url)
-        network_filename = os.path.join(output_directory, 'network_' + escaped_url)
-        if os.path.exists(network_filename):
-            os.remove(network_filename)
-        tracing_filename = os.path.join(output_directory, 'tracing_' + escaped_url)
-        if os.path.exists(tracing_filename):
-            os.remove(tracing_filename)
+        debugging_socket = ChromeRDPWebsocketStreaming(debugging_url, url, user_agent_str, args.collect_console, args.collect_tracing, callback_on_received_event, callback_on_page_done_streaming, args.preserve_cache, args.defer_stop, args.get_dom)
+    debugging_socket.start()
 
-        if args.get_dependency_baseline:
-            debugging_socket = ChromeRDPWebsocketStreaming(debugging_url, url, device_configuration, user_agent_str, args.collect_console, args.collect_tracing, callback_on_received_event, None, args.preserve_cache, args.defer_stop)
-            def timeout_handler(a, b):
-                callback_on_page_done_streaming(debugging_socket)
-                sys.exit(0)
+def get_debugging_url(device_configuration):
+    '''
+    Returns a tuple of the URL for connection to DevTools and the page ID.
+    '''
+    while True:
+        try:
+            debugging_url, page_id = chrome_utils.get_debugging_url(device_configuration)
+            print 'Debugging URL: ' + debugging_url + ' page_id: ' + page_id
+            return debugging_url, page_id
+        except (requests.exceptions.ConnectionError, KeyError) as e:
+            pass
+    # We are not suppose to get here.
+    assert(False)
 
-            print 'Setting SIGTERM handler'
-            signal.signal(signal.SIGTERM, timeout_handler)
-        else:
-            debugging_socket = ChromeRDPWebsocketStreaming(debugging_url, url, device_configuration, user_agent_str, args.collect_console, args.collect_tracing, callback_on_received_event, callback_on_page_done_streaming, args.preserve_cache, args.defer_stop)
-        debugging_socket.start()
     
 def output_cpu_running_chrome(output_directory, cpu_id):
     '''
@@ -87,10 +77,16 @@ def output_cpu_running_chrome(output_directory, cpu_id):
     with open(cpu_running_chrome_filename, 'wb') as output_file:
         output_file.write(cpu_id)
 
-def create_output_directory_for_url(url):
+def remove_and_create_output_directory_for_url(url):
     '''
     Creates an output directory for the url
     '''
+    base_dir = ConstructOutputDir(url)
+    shutil.rmtree(base_dir, ignore_errors=True)
+    os.mkdir(base_dir)
+    return base_dir
+
+def ConstructOutputDir(url):
     base_dir = ''
     if OUTPUT_DIR is not None:
         base_dir = os.path.join(base_dir, OUTPUT_DIR)
@@ -98,21 +94,17 @@ def create_output_directory_for_url(url):
             os.mkdir(base_dir)
     
     final_url = common_module.escape_page(url)
+    return os.path.join(base_dir, final_url)
 
-    base_dir = os.path.join(base_dir, final_url)
-    # Create the directory if the directory doesn't exist.
-    if not os.path.exists(base_dir):
-        os.mkdir(base_dir)
-    return base_dir
 
 def callback_on_received_event(debugging_socket, network_message, network_message_string):
-    url = debugging_socket.get_navigation_url()
-    base_dir = create_output_directory_for_url(url)
-    final_url = common_module.escape_page(url)
+    base_dir = ConstructOutputDir(debugging_socket.url)
+    final_url = common_module.escape_page(debugging_socket.url)
     if 'method' in network_message and network_message['method'].startswith('Network'):
         network_filename = os.path.join(base_dir, 'network_' + final_url)
         with open(network_filename, 'ab') as output_file:
             output_file.write('{0}\n'.format(network_message_string))
+
     elif 'method' in network_message and network_message['method'].startswith('Console'):
         network_filename = os.path.join(base_dir, 'console_' + final_url)
         with open(network_filename, 'ab') as output_file:
@@ -132,21 +124,22 @@ def callback_on_page_done_streaming(debugging_socket):
     print 'Closed debugging socket connection'
 
     sleep(2)
-    url = debugging_socket.get_navigation_url()
-    debugging_url = debugging_socket.get_debugging_url()
-    final_url = common_module.escape_page(url)
-    base_dir = create_output_directory_for_url(url)
-    
-    new_debugging_websocket = websocket.create_connection(debugging_url)
+    final_url = common_module.escape_page(debugging_socket.url)
+    base_dir = ConstructOutputDir(debugging_socket.url)
+    new_debugging_websocket = websocket.create_connection(debugging_socket.debugging_url)
+    with open(os.path.join(base_dir, 'unmodified_root_html'), 'wb') as output_file:
+        output_file.write(str(debugging_socket.unmodified_html))
+
     # Get the start and end time of the execution
     start_time, end_time, dom_content_loaded = navigation_utils.get_start_end_time_with_socket(new_debugging_websocket)
     # print 'output dir: ' + base_dir
     print 'Load time: ' + str((start_time, end_time)) + ' ' + str((end_time - start_time))
     write_page_start_end_time(final_url, base_dir, start_time, end_time, dom_content_loaded, -1, -1)
     print 'getting DOM tree'
+
     if args.record_content:
         body = navigation_utils.get_modified_html(new_debugging_websocket)
-        with open(os.path.join(base_dir, 'root_html'), 'wb') as output_file:
+        with open(os.path.join(base_dir, 'onload_root_html'), 'wb') as output_file:
             output_file.write(body)
 
     if args.get_dom:
@@ -154,11 +147,9 @@ def callback_on_page_done_streaming(debugging_socket):
         with open(os.path.join(base_dir, 'dom'), 'wb') as output_file:
             output_file.write(dom)
 
-
     navigation_utils.navigate_to_page(new_debugging_websocket, 'about:blank')
     # sleep(0.2)
     new_debugging_websocket.close()
-
     clean_user_dir()
 
 
@@ -190,7 +181,6 @@ if __name__ == '__main__':
     argparser.add_argument('device', help='The device name e.g. Nexus_6')
     argparser.add_argument('url', help='The URL to navigate to e.g. http://apple.com')
     argparser.add_argument('--output-dir', help='The output directory of the generated files', default=None)
-    argparser.add_argument('--disable-tracing', default=False, action='store_true')
     argparser.add_argument('--reload-page', default=False, action='store_true')
     argparser.add_argument('--record-content', default=False, action='store_true')
     argparser.add_argument('--collect-console', default=False, action='store_true')
@@ -209,4 +199,4 @@ if __name__ == '__main__':
 
     # Get the device configuration.
     device_config = config.get_device_configuration(config_reader, args.device)
-    main(device_config, args.url, args.disable_tracing, args.reload_page)
+    main(device_config, args.url, args.reload_page)

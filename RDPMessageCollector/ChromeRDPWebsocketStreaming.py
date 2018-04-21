@@ -31,11 +31,9 @@ def escape_page(url):
 
 class ChromeRDPWebsocketStreaming(object):
 
-    def __init__(self, url, target_url, device_configuration, user_agent_str, collect_console, collect_tracing, callback_on_network_event, callback_page_done, preserve_cache, use_virtual_time_budget):
+    def __init__(self, ws_url, page_url, user_agent_str, collect_console, collect_tracing, message_callback, callback_page_done, preserve_cache, use_virtual_time_budget, get_main_html):
         '''
         Initialize the object. 
-        url - the websocket url
-        target_url - the url to navigate to
         '''
         # websocket.enableTrace(True)
 
@@ -43,26 +41,28 @@ class ChromeRDPWebsocketStreaming(object):
         self.originalRequestMs = None
         self.domContentEventFiredMs = None
         self.loadEventFiredMs = None
+        self.mainHtmlRequestId = None
         self.tracingCollectionCompleted = False
         self.start_page = False
         self.use_virtual_time_budget = use_virtual_time_budget
         self.virtual_time_expired = False
+        self.get_main_html = get_main_html
+        self.waiting_for_main_html = False
+        self.unmodified_html = ''
 
-        self.url = target_url       # The URL to navigate to.
+        self.url = page_url       # The URL to navigate to.
         self.collect_console = collect_console
         self.collect_tracing = collect_tracing # Never start tracing.
-        self.callback_on_network_event = callback_on_network_event
+        self.message_callback = message_callback
         self.callback_page_done = callback_page_done    # The callback method
         self.user_agent = user_agent_str
-        self.device_configuration = device_configuration # The device configuration
-        self.debugging_url = url
+        self.debugging_url = ws_url
         self.preserve_cache = preserve_cache
-        self.ws = websocket.WebSocketApp(url,\
+        self.ws = websocket.WebSocketApp(ws_url,\
                                         on_message = self.on_message,\
                                         on_error = self.on_error,\
                                         on_close = self.on_close)
         self.ws.on_open = self.on_open
-
         self.tracing_started = False
 
     def start(self):
@@ -73,16 +73,27 @@ class ChromeRDPWebsocketStreaming(object):
         Handle each message.
         '''
         message_obj = json.loads(message)
-        self.callback_on_network_event(self, message_obj, message)
-        # self.tracingCollectionCompleted = True
-        # print message_obj
-        if METHOD in message_obj and message_obj[METHOD].startswith('Network'):
+        self.message_callback(self, message_obj, message)
+        if METHOD not in message_obj:
+            if message_obj['id'] == navigation_utils.METHOD_IDS['Network.getResponseBody']:
+                self.unmodified_html = message_obj['result']['body']
+                self.waiting_for_main_html = False
+
+        elif message_obj[METHOD].startswith('Network'):
             if message_obj[METHOD] == 'Network.requestWillBeSent' and \
                 escape_page(message_obj[PARAMS]['request']['url']) == escape_page(self.url):
                 self.start_page = True
-                self.callback_on_network_event(self, message_obj, message)
                 self.originalRequestMs = message_obj[PARAMS][TIMESTAMP] * 1000
-        elif METHOD in message_obj and message_obj[METHOD].startswith('Page'):
+                self.mainHtmlRequestId = message_obj[PARAMS][REQUEST_ID]
+
+            elif self.get_main_html and \
+                    message_obj[METHOD] == 'Network.loadingFinished' and \
+                    message_obj[PARAMS]['requestId'] == self.mainHtmlRequestId:
+                print 'here'
+                self.waiting_for_main_html = True
+                navigation_utils.get_response_body(self.ws, self.mainHtmlRequestId)
+
+        elif message_obj[METHOD].startswith('Page'):
             if message_obj[METHOD] == 'Page.domContentEventFired' and self.start_page:
                 self.domContentEventFiredMs = message_obj[PARAMS][TIMESTAMP] * 1000
             elif message_obj[METHOD] == 'Page.loadEventFired' and self.start_page:
@@ -96,10 +107,12 @@ class ChromeRDPWebsocketStreaming(object):
                 elif message_obj[PARAMS]['type'] == 'confirm' or \
                     message_obj[PARAMS]['type'] == 'prompt':
                     navigation_utils.handle_js_dialog(self.ws, accept=False)
-        elif METHOD in message_obj and message_obj[METHOD].startswith('Tracing'):
+
+        elif message_obj[METHOD].startswith('Tracing'):
             if message_obj[METHOD] == 'Tracing.tracingComplete':
                 self.tracingCollectionCompleted = True
-        elif METHOD in message_obj and message_obj[METHOD].startswith('Emulation'):
+
+        elif message_obj[METHOD].startswith('Emulation'):
             # print message_obj
             if message_obj[METHOD] == 'Emulation.virtualTimeBudgetExpired':
                 # print 'Virtual time expired'
@@ -118,15 +131,16 @@ class ChromeRDPWebsocketStreaming(object):
             self.loadEventFiredMs is not None and \
             (not self.collect_tracing or \
             (self.collect_tracing and self.tracingCollectionCompleted)) and \
+            (not self.get_main_html or \
+            self.get_main_html and not self.waiting_for_main_html) and \
             self.callback_page_done is not None)) or \
             (self.use_virtual_time_budget and \
             self.virtual_time_expired):
                 self.disable_network_tracking(self.ws)
                 self.disable_page_tracking(self.ws)
+                self.disable_dom(self.ws)
                 if self.collect_console:
                     self.disable_console_tracking(self.ws)
-                #if self.collect_tracing:
-                #    self.stop_trace_collection(self.ws)
                 print 'Start time {0}, Load completed: {1}'.format(self.originalRequestMs, self.loadEventFiredMs)
                 self.callback_page_done(self)
 
@@ -152,7 +166,6 @@ class ChromeRDPWebsocketStreaming(object):
         if self.collect_console:
             self.enable_console_tracking(self.ws)
 
-
         if self.user_agent is not None:
             navigation_utils.set_user_agent(self.ws, self.user_agent)
 
@@ -176,9 +189,6 @@ class ChromeRDPWebsocketStreaming(object):
     def close_connection(self):
         self.ws.close()
         print 'Connection closed'
-
-    def get_navigation_url(self):
-        return self.url
 
     def clear_cache(self, debug_connection):
         navigation_utils.clear_cache(debug_connection)
@@ -261,14 +271,6 @@ class ChromeRDPWebsocketStreaming(object):
         print 'set device metrics override'
         # sleep(WAIT)
 
-    def can_clear_cache(self, debug_connection):
-        '''
-        Clears the cache in the browser
-        '''
-        clear_cache = { "id": 1, "method": "Network.canClearBrowserCache" }
-        debug_connection.send(json.dumps(clear_cache))
-        print 'Cleared browser cache'
-        # sleep(WAIT)
 
     def disable_network_tracking(self, debug_connection):
         '''
@@ -328,6 +330,37 @@ class ChromeRDPWebsocketStreaming(object):
         print 'Enabled page tracking.'
         # sleep(WAIT)
 
+
+    def enable_dom(self, debug_connection):
+        '''
+        Enables DOM domain tracing.
+        '''
+        enable_dom = { 'id': 1010, 'method': 'DOM.enable' }
+        print 'enabled DOM'
+        debug_connection.send(json.dumps(enable_dom))
+
+
+    def disable_dom(self, debug_connection):
+        '''
+        Disables DOM domain tracing.
+        '''
+        disable_dom = { 'id': 1020, 'method': 'DOM.disable' }
+        debug_connection.send(json.dumps(disable_dom))
+
+
+    def get_document(self, debug_connection):
+        print 'getting document'
+        get_document = { 'id': 1019, 'method': 'DOM.getDocument', 'params': { 'depth': -1 } }
+        debug_connection.send(json.dumps(get_document))
+        result = debug_connection.recv()
+
+    
+    def request_child_nodes(self, debug_connection, node_id):
+        '''
+        '''
+        request_child_nodes = { 'id': 1030, 'method': 'DOM.requestChildNodes', 'params': { 'nodeId': node_id, 'depth': -1 }}
+        debug_connection.send(json.dumps(request_child_nodes))
+
     def enable_runtime(self, debug_connection):
         '''
         Enables Runtime in Chrome.
@@ -357,7 +390,7 @@ class ChromeRDPWebsocketStreaming(object):
         debug_connection.send(json.dumps(disable_trace_collection))
         self.tracing_started = False
         print 'Disables trace collection'
-        # sleep(WAIT)
+
 
     def capture_screenshot(self, debug_connection):
         '''
@@ -366,14 +399,7 @@ class ChromeRDPWebsocketStreaming(object):
         print 'capturing screenshot'
         capture_screenshot = { 'method': 'Page.captureScreenshot' }
         debug_connection.send(json.dumps(capture_screenshot))
-        # print 'Disables trace collection'
-        # sleep(WAIT)
 
-    def get_debugging_url(self):
-        '''
-        Returns the debugging url.
-        '''
-        return self.debugging_url
 
     def set_virtual_time_budget(self, debug_connection):
         '''

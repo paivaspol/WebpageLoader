@@ -3,6 +3,11 @@ import websocket
 
 from time import sleep
 
+# Mapping for the method ids.
+METHOD_IDS = {
+        'Network.getResponseBody': 442,
+}
+
 def navigate_to_page(debug_connection, url):
     '''
     Navigates to the url.
@@ -59,21 +64,13 @@ def get_start_end_time_with_socket(ws):
             pass
     return start_time, end_time, dom_content_loaded
 
-def get_request_body(ws, request_id):
+def get_response_body(ws, request_id):
     '''
-    Gets the request body for the request_id
+    Gets the response body for the request_id
     '''
-    split_request_id = request_id.split('.')
-    request_id_number = int(split_request_id[0] + split_request_id[1])
-    get_request_body = json.dumps({ "id": request_id_number, "method": "Network.getResponseBody", "params": { "requestId": request_id }})
+    method = "Network.getResponseBody"
+    get_request_body = json.dumps({ "id": METHOD_IDS[method], "method": method, "params": { "requestId": request_id }})
     ws.send(get_request_body)
-    return request_id_number
-    # request_body_object = json.loads(ws.recv())
-    # print str(request_id) + ' ' + str(request_body_object)
-    # if request_body_object['error'] is not None:
-    #     return None
-    # else:
-    #     return request_body_object['result']['body'].encode('utf-8')
 
 def get_modified_html(ws):
     '''

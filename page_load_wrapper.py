@@ -121,10 +121,14 @@ def load_pages_with_measurement_disabled_but_tracing_enabled(pages, output_dir, 
     print_failed_pages(output_dir, failed_pages)
 
 def print_failed_pages(output_dir, failed_pages):
+    '''
+    Prints the failed pages.
+    '''
     output_filename = os.path.join(output_dir, 'failed_pages.txt')
     with open(output_filename, 'wb') as output_file:
         for failed_page in failed_pages:
             output_file.write(failed_page + '\n')
+
 
 def load_pages_with_measurement_and_tracing_disabled(pages, output_dir, num_repetitions, device_name, record_contents):
     initialize_browser(device_name)
