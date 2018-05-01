@@ -76,7 +76,8 @@ class ChromeRDPWebsocketStreaming(object):
         self.message_callback(self, message_obj, message)
         if METHOD not in message_obj:
             if message_obj['id'] == navigation_utils.METHOD_IDS['Network.getResponseBody']:
-                self.unmodified_html = message_obj['result']['body']
+                print message_obj
+                self.unmodified_html = message_obj['result']['body'].encode('utf-8')
                 self.waiting_for_main_html = False
 
         elif message_obj[METHOD].startswith('Network'):

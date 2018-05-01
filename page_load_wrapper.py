@@ -30,10 +30,10 @@ DEVICES = {
 }
 DEFAULT_DEVICE = 'Nexus_6'
 
-TIMEOUT = 2 * 60 # set to 3 minutes
-PAUSE = 2
+TIMEOUT = 1 * 60 # set to 3 minutes
+PAUSE = 1
 BUFFER_FOR_TRACE = 5
-TRY_LIMIT = 5
+TRY_LIMIT = 2
 
 def main(pages_file, num_repetitions, output_dir, start_measurements, device_name, disable_tracing, record_contents):
     signal.signal(signal.SIGALRM, timeout_handler) # Setup the timeout handler

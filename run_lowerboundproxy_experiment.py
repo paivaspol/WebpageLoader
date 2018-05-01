@@ -1,163 +1,115 @@
+# python mahimahi_page_script.py /home/vaspol/Research/MobileWebOptimization/third_party_accelerate/random_25 ${RECORD_CONFIG_FILENAME} Nexus_6 6 third_party_speedup_lowerbound /home/vaspol/Research/MobileWebOptimization/results/third_party_accelerate/03_06_prioritized_fixed_bugs --collect-tracing --use-openvpn
+
 from argparse import ArgumentParser
 
-from utils import script_runner
-from utils.pacfile import Pacfile
-
 import common_module
-import json
 import os
-import tempfile
-import time
 import subprocess
+import shutil
 import urllib
 
-CONFIG_PREFETCH_SERVER = 'prefetchServer'
-CONFIG_DOWNLINK = 'downlink'
-CONFIG_UPLINK = 'uplink'
-CONFIG_RTT = 'rtt'
+tmp_output_dir = '/tmp/load/'
+tmp_page_file = '/tmp/page_file'
+record_config_filename = 'replay_configurations/record_config.cfg'
 
 def main():
-    config = GetConfig(args.config)
-    SetupPacfile(config)
-    ShapeNetwork(config)
-    urls = GetUrls(config['pageList'])
-    for url in urls:
-        escaped_url = common_module.escape_page(url)
+    pages = GetPages()
+    for p in pages:
+        print 'Loading ' + p
+        with open(tmp_page_file, 'w') as output_file:
+            output_file.write(GeneratePageUrl(p) + '\n')
 
-        # Start the proxy and prefetch injection webserver.
-        # ./run_proxy.sh 8080 8081 proxy/important proxy/order
-        start_proxy_command = [ \
-                config['proxyLocation'] + '/run_proxy.sh', \
-                config['proxyLocation'], \
-                str(config['lowerboundProxyPort']), \
-                str(config['prefetchServerPort']), \
-                os.path.join(config['prefetchUrlsDir'], escaped_url), \
-                os.path.join(config['requestOrderDir'], escaped_url) \
-        ]
-        print ' '.join(start_proxy_command)
-        subprocess.Popen(start_proxy_command)
-        time.sleep(2)
-        ps_cmd = 'ps aux | grep "go"'
-        proc = subprocess.Popen(ps_cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        stdout, stderr = proc.communicate()
-        print stdout
-        print ''
-        print stderr
+        page_prefetch_filename = os.path.join(args.prefetch_url_dir, common_module.escape_page(p))
+        server = StartPrefetchServer(page_prefetch_filename)
+        mode = 'third_party_speedup_lowerbound'
+        if args.no_prefetch:
+            mode = 'passthrough_proxy'
 
-        # Generate the URL for prefetching.
-        redirectUrl = GenerateRedirectURL(config[CONFIG_PREFETCH_SERVER], url)
-        print 'redirectURL: {0}'.format(redirectUrl)
-        url_file = tempfile.NamedTemporaryFile()
-        url_file.write(redirectUrl)
-        url_file.flush()
+        command = 'python mahimahi_page_script.py {0} {1} Nexus_6_chromium {2} {3} {4} --collect-tracing --use-openvpn'.format(tmp_page_file, record_config_filename, args.iterations, mode, args.output_dir)
+        # command = 'python mahimahi_page_script.py {0} {1} Nexus_6_chromium {2} {3} {4} --collect-tracing --use-openvpn --pac-file-location {5}'.format(tmp_page_file, record_config_filename, args.iterations, mode, args.output_dir, 'http://apple-pi.eecs.umich.edu/config_testing.pac')
+        subprocess.call(command.split())
 
-        # Shape the network and run the crawler.
-        crawler_cmd = 'python page_load_wrapper.py {0} {1} {2} --use-device={3} --collect-tracing'.format(url_file.name, config['iterations'], config['outputDir'], config['device'])
-        subprocess.call(crawler_cmd.split(' '))
+        StopPrefetchServer()
+        os.remove(tmp_page_file)
+    RenameResult()
 
-        url_file.close()
-        stop_proxy_command = [ config['proxyLocation'] + '/stop_proxy.sh' ]
-        subprocess.call(stop_proxy_command)
 
-        # Fix the filenames.
-        RemovePrefetchServerPrefixes(config, redirectUrl, escaped_url)
+def GeneratePageUrl(p):
+    base_url = 'http://apple-pi.eecs.umich.edu:8080/?'
+    get_vars = { 'dstPage': p, 'prefetch': 0 if args.no_prefetch else 1 }
+    return base_url + urllib.urlencode(get_vars)
 
-def RemovePrefetchServerPrefixes(config, redirect_url, escaped_page):
-    ''' Fixes the name of the results by removing the prefetch server prefixes '''
-    for i in range(0, int(config['iterations'])):
-        iter_dir = os.path.join(config['outputDir'], str(i))
-        for p in os.listdir(iter_dir):
-            prefixed_page = common_module.escape_page(redirect_url)
-            page_dir = os.path.join(iter_dir, prefixed_page)
 
-            # Change the file name that contains the prefetch server.
-            for f in page_dir:
-                if prefixed_page not in f:
-                    continue
-                first_idx = f.find(prefixed_page)
-                unprefixed_f = f[:first_idx] + p
+def StartPrefetchServer(page_prefetch_filename):
+    cmd = 'go run /home/vaspol/go/src/github.com/paivaspol/lowerboundproxy/prefetch_webserver/prefetchwebserver.go -port=8080 -prefetch-urls={0}'.format(page_prefetch_filename)
+    proc = subprocess.Popen(cmd.split())
+    print 'Started prefetchserver with {0}'.format(page_prefetch_filename)
+    return proc
 
-                # Move the file.
-                src = os.path.join(page_dir, f)
-                dst = os.path.join(page_dir, unprefixed_f)
-                mv_cmd = 'mv {0} {1}'.format(src, dst)
-                subprocess.call(mv_cmd.split())
+
+def StopPrefetchServer():
+    cmd = [ 'sudo', 'netstat', '-tulpn' ]
+    p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    output = p.stdout.read()
+    pid = -1
+    for l in output.split('\n'):
+        if ':8080' not in l:
+            continue
+        splitted_l = l.split()
+        pid = splitted_l[6].split('/')[0]
+        break
     
-            # Now that we fixed all the files in the directory, 
-            # fix the page directory.
-            src = os.path.join(iter_dir, prefixed_page)
-            dst = os.path.join(iter_dir, escaped_page)
-            mv_cmd = 'mv {0} {1}'.format(src, dst)
-            subprocess.call(mv_cmd.split(' '))
-    dst = os.path.join(config['outputDir'], escaped_page)
+    cmd = [ 'sudo', 'kill', '-9', str(pid) ]
+    print cmd
+    subprocess.call(cmd)
 
-
-def SetupPacfile(config):
-    ''' Setup pacfile creates a pac file and push it down to the device '''
-    pacfile = Pacfile()
-    pacfile.AddRule('shExpMatch(url, "*{0}/prefetch*")'.format(config[CONFIG_PREFETCH_SERVER]), 'DIRECT')
-    pacfile.SetDefaultRule('PROXY ' + '{0}:{1}'.format(config['proxyHost'], config['lowerboundProxyPort']))
-    pac_filename = 'tmp.pac'
-    with open(pac_filename, 'w') as output_file:
-        output_file.write(str(pacfile))
-    print 'Pushing PAC file to phone'
-    cmd = 'adb -s {0} push {1} {2}'.format(config['deviceSerial'], pac_filename, '/sdcard/Research/proxy.pac')
-    subprocess.call(cmd.split())
-    rm_cmd = 'rm ' + pac_filename
-    subprocess.call(rm_cmd.split())
-
-
-def ShapeNetwork(config):
-    '''
-    Shapes the network according to the parameters specified in the config file.
-    '''
-    print 'Shaping the network with DOWN: {0} UP: {1} RTT (each way): {2}'.format(config[CONFIG_DOWNLINK], config[CONFIG_UPLINK], config[CONFIG_RTT])
-    if config[CONFIG_DOWNLINK] == 'inf' or \
-        config[CONFIG_UPLINK] == 'inf' or \
-        config[CONFIG_RTT] == 'inf':
-        script_runner.clear_traffic_shaping()
-    else:
-        script_runner.shape_traffic(config[CONFIG_DOWNLINK], \
-                                    config[CONFIG_UPLINK], \
-                                    config[CONFIG_RTT])
-
-
-def GenerateRedirectURL(prefetch_webserver, url):
-    '''
-    Returns the redirect URL in the form of prefetch_webserver + query_encoded(url)
-    '''
-    query = { 'dstPage': url }
-    hostname = prefetch_webserver if prefetch_webserver.endswith('/') else prefetch_webserver + '/'
-    return '{0}prefetch?{1}'.format(hostname, urllib.urlencode(query))
-
-
-def GetConfig(config):
-    '''
-    Returns the config file
-    '''
-    with open(config, 'rb') as input_file:
-        config = json.load(input_file)
-        config[CONFIG_PREFETCH_SERVER] = 'http://{0}:{1}'.format(config['proxyHost'], config['prefetchServerPort'])
-        return config
-
-
-def GetUrls(page_list):
-    '''
-    Returns a list of pages specified in the page list file.
-    It returns the redirected page.
-    '''
+def GetPages():
     pages = []
-    with open(page_list, 'r') as input_file:
+    with open(args.page_list, 'rb') as input_file:
         for l in input_file:
             if l.startswith('#'):
                 continue
-            l = l.strip().split()
-            pages.append(l[len(l) - 1])
+            splitted_line = l.strip().split()
+            pages.append(splitted_line[len(splitted_line) - 1])
     return pages
+
+
+def RenameResult():
+    prefix_with_prefetch = 'apple-pi.eecs.umich.edu:8080_?prefetch=1&dstPage='
+    prefix_without_prefetch = 'apple-pi.eecs.umich.edu:8080_?prefetch=0&dstPage='
+    # First, rename all the files in the output directory
+    for i in range(0, args.iterations):
+        iteration_dir = os.path.join(args.output_dir, str(i))
+        for p in os.listdir(iteration_dir):
+            if not (prefix_with_prefetch in p or prefix_without_prefetch in p):
+                # Skip pages without the prefix.
+                continue
+
+            prefix = prefix_with_prefetch
+            if prefix_without_prefetch in p:
+                prefix = prefix_without_prefetch
+
+            page_dir = os.path.join(iteration_dir, p)
+            prefix_idx = page_dir.find(prefix)
+            escaped_page = common_module.escape_page(urllib.unquote(page_dir[prefix_idx + len(prefix):]))
+            for f in os.listdir(page_dir):
+                if prefix in f:
+                    # Remove the prefix and convert to escaped page
+                    f_prefix_idx = f.find(prefix)
+                    dst = f[:f_prefix_idx] + escaped_page
+                    cmd = 'mv {0} {1}'.format(os.path.join(page_dir, f), os.path.join(page_dir, dst))
+                    subprocess.call(cmd.split())
+            dst = page_dir[:prefix_idx] + escaped_page
+            cmd = 'mv {0} {1}'.format(page_dir, dst)
+            subprocess.call(cmd.split())
 
 
 if __name__ == '__main__':
     parser = ArgumentParser()
-    parser.add_argument('config')
+    parser.add_argument('page_list')
+    parser.add_argument('iterations', type=int)
+    parser.add_argument('prefetch_url_dir')
+    parser.add_argument('output_dir')
+    parser.add_argument('--no-prefetch', default=False, action='store_true')
     args = parser.parse_args()
     main()

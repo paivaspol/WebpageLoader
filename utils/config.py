@@ -176,6 +176,7 @@ def get_device_configuration(config_reader, device):
         device_config[USER_AGENT] = get_config(config_reader, device, USER_AGENT, None)
         populate_if_exists(device_config, config_reader, device, PAC_FILE_PATH)
         populate_if_exists(device_config, config_reader, device, IGNORE_CERTIFICATE_ERRORS)
+        populate_if_exists(device_config, config_reader, device, EXTENSION)
         device_config[USER_DATA_DIR] = get_config(config_reader, device, USER_DATA_DIR, 'random')
         device_config[CHROME_RUNNING_MODE] = get_config(config_reader, device, CHROME_RUNNING_MODE, 'headless')
 

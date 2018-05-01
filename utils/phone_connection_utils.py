@@ -59,6 +59,7 @@ def start_chrome(device_configuration):
         global devnull
         devnull = open(os.devnull, 'w')
         chrome_proc = subprocess.Popen(' '.join(cmd), stdout=devnull, stderr=devnull, shell=True)
+        # chrome_proc = subprocess.Popen(' '.join(cmd), stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
         sleep(3)
         return chrome_proc
 

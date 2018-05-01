@@ -13,6 +13,7 @@ import subprocess
 import sys
 import requests
 import time
+import urlparse
 
 from time import sleep
 from utils import replay_config_utils
@@ -116,9 +117,9 @@ def main(config_filename, pages, iterations, device_name, mode, output_dir):
                     os.mkdir(server_side_output_dir)
                 fetch_reverse_proxy_logs(escaped_page, server_side_output_dir)
 
-            if mode == 'record' or mode == THIRD_PARTY_SPEEDUP or mode == PROXY_WITHIN_REPLAY:
+            if mode == 'record' or mode == 'passthrough_proxy' or mode == THIRD_PARTY_SPEEDUP or mode == PROXY_WITHIN_REPLAY:
                 sleep(3)
-        if mode == 'record' or mode == THIRD_PARTY_SPEEDUP or mode == PROXY_WITHIN_REPLAY:
+        if mode == 'record' or mode == 'passthrough_proxy' or mode == THIRD_PARTY_SPEEDUP or mode == PROXY_WITHIN_REPLAY:
             done(replay_configurations)
 
         print 'Failed pages: ' + str(failed_pages)
@@ -195,7 +196,7 @@ def start_proxy(mode, page, time, replay_configurations, delay=0):
     proxy_started = False
     # Ensure that the proxy has started before start loading the page
     while not proxy_started:
-        if mode == 'record':
+        if mode == 'record' or mode == 'passthrough_proxy':
             server_mode = 'start_recording'
         elif mode == 'replay' or mode == 'per_packet_delay_replay':
             server_mode = 'start_proxy'
@@ -203,6 +204,15 @@ def start_proxy(mode, page, time, replay_configurations, delay=0):
             server_mode = 'start_delay_replay_proxy'
         elif mode == THIRD_PARTY_SPEEDUP:
             server_mode = 'start_third_party_speedup_proxy'
+            # Make sure that we don't send the dummy page URL.
+            print page
+            prefix = 'apple-pi.eecs.umich.edu:8080/?dstPage='
+            prefix_idx = page.find(prefix)
+            if prefix_idx != -1:
+                queries = urlparse.parse_qs(urlparse.urlparse(page).query)
+                page = queries['dstPage'][0]
+                print 'Page: ' + page
+
         elif mode == PROXY_WITHIN_REPLAY:
             server_mode = 'start_proxy_within_replay'
 
@@ -226,6 +236,9 @@ def start_proxy(mode, page, time, replay_configurations, delay=0):
         else:
             start_proxy_url += '&dependencies=yes'
 
+        if mode == 'passthrough_proxy':
+            start_proxy_url += '&storage=noop'
+
         print start_proxy_url
         sleep(0.01)
         result = requests.get(start_proxy_url)
@@ -241,7 +254,7 @@ def stop_proxy(mode, page, time, replay_configurations):
     '''
     Stops the proxy
     '''
-    if mode == 'record':
+    if mode == 'record' or mode == 'passthrough_proxy':
         server_mode = 'stop_recording'
         sleep(10)
     elif mode == 'replay' or mode == 'per_packet_delay_replay':
@@ -341,6 +354,7 @@ def load_one_website(page, iterations, output_dir, device_info, mode, replay_con
             result = load_page(page, run_index, output_dir, False, device_info, False, mode, replay_configurations, current_time)
             if result is not None:
                 return result, run_index
+        chrome_utils.close_all_tabs(device_info[2])
     return None, -1
 
 def timeout_handler(signum, frame):
@@ -352,7 +366,7 @@ def timeout_handler(signum, frame):
 
 def check_proxy_running(config, mode):
     print 'Checking if proxy running'
-    if mode == 'record':
+    if mode == 'record' or mode == 'passthrough_proxy':
         server_check = 'is_record_proxy_running'
     elif mode == 'replay' or mode == 'per_packet_delay_replay':
         server_check = 'is_replay_proxy_running'
@@ -373,7 +387,7 @@ def check_proxy_running(config, mode):
 
 def check_proxy_stopped(config, mode):
     print 'Checking if proxy running'
-    if mode == 'record' or mode == THIRD_PARTY_SPEEDUP:
+    if mode == 'record' or mode == THIRD_PARTY_SPEEDUP or mode == 'passthrough_proxy':
         server_check = 'is_record_proxy_running'
     elif mode == PROXY_WITHIN_REPLAY:
         server_check = 'is_proxy_within_replay_running'
@@ -508,7 +522,7 @@ if __name__ == '__main__':
     parser.add_argument('replay_config_filename')
     parser.add_argument('device_name')
     parser.add_argument('iterations', type=int)
-    parser.add_argument('mode', choices=[ 'replay', 'delay_replay', 'per_packet_delay_replay', 'record', THIRD_PARTY_SPEEDUP, PROXY_WITHIN_REPLAY ])
+    parser.add_argument('mode', choices=[ 'replay', 'delay_replay', 'per_packet_delay_replay', 'record', 'passthrough_proxy', THIRD_PARTY_SPEEDUP, PROXY_WITHIN_REPLAY ])
     parser.add_argument('output_dir')
     parser.add_argument('--delay', default=None)
     parser.add_argument('--http-version', default=2, type=int)
