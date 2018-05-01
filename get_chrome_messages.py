@@ -127,8 +127,6 @@ def callback_on_page_done_streaming(debugging_socket):
     final_url = common_module.escape_page(debugging_socket.url)
     base_dir = ConstructOutputDir(debugging_socket.url)
     new_debugging_websocket = websocket.create_connection(debugging_socket.debugging_url)
-    with open(os.path.join(base_dir, 'unmodified_root_html'), 'wb') as output_file:
-        output_file.write(str(debugging_socket.unmodified_html))
 
     # Get the start and end time of the execution
     start_time, end_time, dom_content_loaded = navigation_utils.get_start_end_time_with_socket(new_debugging_websocket)
@@ -143,6 +141,9 @@ def callback_on_page_done_streaming(debugging_socket):
             output_file.write(body)
 
     if args.get_dom:
+        with open(os.path.join(base_dir, 'unmodified_root_html'), 'wb') as output_file:
+            output_file.write(str(debugging_socket.unmodified_html))
+
         dom = navigation_utils.get_dom_tree(new_debugging_websocket)
         with open(os.path.join(base_dir, 'dom'), 'wb') as output_file:
             output_file.write(dom)

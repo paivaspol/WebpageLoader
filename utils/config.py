@@ -129,13 +129,13 @@ IGNORE_CERTIFICATE_ERRORS = 'ignore_certificate_errors'
 PAC_FILE_PATH = 'pac_file_path'
 SCREEN_SIZE = 'screen_size'
 USER_AGENT = 'user_agent'
+CHROME_BINARY = 'chrome_bin'
 
 # Hardcoded values for the Chrome instances.
 ANDROID_CHROME_INSTANCE = 'com.android.chrome/com.google.android.apps.chrome.Main'
 ANDROID_CHROMIUM_INSTANCE = 'org.chromium.chrome/com.google.android.apps.chrome.Main'
 MAC_CHROME_INSTANCE = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
 UBUNTU_CHROME_INSTANCE = '/opt/google/chrome/google-chrome'
-
 
 def get_device_configuration(config_reader, device):
     '''
@@ -167,12 +167,13 @@ def get_device_configuration(config_reader, device):
 
     elif device_type == DEVICE_MAC:
         device_config[CHROME_DESKTOP_DEBUG_PORT] = int(config_reader.get(device, CHROME_DESKTOP_DEBUG_PORT))
-        device_config[CHROME_INSTANCE] = MAC_CHROME_INSTANCE
+        device_config[CHROME_INSTANCE] = get_config(config_reader, device, CHROME_BINARY, MAC_CHROME_INSTANCE)
         device_config[USER_AGENT] = get_config(config_reader, device, USER_AGENT, None)
         populate_if_exists(device_config, config_reader, device, PAC_FILE_PATH)
+
     elif device_type == DEVICE_UBUNTU:
         device_config[CHROME_DESKTOP_DEBUG_PORT] = int(config_reader.get(device, CHROME_DESKTOP_DEBUG_PORT))
-        device_config[CHROME_INSTANCE] = UBUNTU_CHROME_INSTANCE
+        device_config[CHROME_INSTANCE] = get_config(config_reader, device, CHROME_BINARY, UBUNTU_CHROME_INSTANCE)
         device_config[USER_AGENT] = get_config(config_reader, device, USER_AGENT, None)
         populate_if_exists(device_config, config_reader, device, PAC_FILE_PATH)
         populate_if_exists(device_config, config_reader, device, IGNORE_CERTIFICATE_ERRORS)
@@ -187,5 +188,6 @@ def get_device_configuration(config_reader, device):
                 key, value = screen_config.split("=")
                 screen_config_dict[key] = value
             device_config[SCREEN_SIZE] = screen_config_dict
+    
 
     return device_config

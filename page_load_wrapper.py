@@ -2,7 +2,6 @@ import subprocess
 import requests
 import signal # For timeout.
 import os
-import simplejson
 
 import common_module
 
