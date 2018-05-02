@@ -75,7 +75,7 @@ def stop_chrome(device_configuration):
     '''
     if device_configuration[config.DEVICE_TYPE] == config.DEVICE_PHONE:
         chrome_instance = "com.android.chrome"
-        if device_configuration[config.CHROME_INSTANCE] == ANDROID_CHROMIUM_INSTANCE:
+        if device_configuration[config.CHROME_INSTANCE] == config.ANDROID_CHROMIUM_INSTANCE:
             chrome_instance = "org.chromium.chrome"
         cmd_base = 'adb -s {0} shell am force-stop {1}'
         cmd = cmd_base.format(device_configuration[config.DEVICE_ID], chrome_instance)
@@ -212,13 +212,13 @@ def bring_cpu_measurement_to_foreground(device_configuration):
 
 
 def get_cpu_running_chrome(device_config):
-    command = 'adb -s {0} shell \'ps -c | grep chrome\''.format(device_config[DEVICE_ID])
+    command = 'adb -s {0} shell \'ps -c | grep chrome\''.format(device_config[config.DEVICE_ID])
     process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     output, _ = process.communicate()
     return output.split()[5]
 
 def get_process_ids(device_config, proc_name):
-    command = 'adb -s {0} shell \'ps -c | grep {1}\''.format(device_config[DEVICE_ID], proc_name)
+    command = 'adb -s {0} shell \'ps -c | grep {1}\''.format(device_config[config.DEVICE_ID], proc_name)
     process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     output, _ = process.communicate()
     lines = output.split()
@@ -229,13 +229,13 @@ def get_process_ids(device_config, proc_name):
     return result
 
 def pin_process_to_cpu(device_config, bitmask, proc_id):
-    command = 'adb -s {0} shell \'su -c \'taskset {1} -p {2}\'\''.format(device_config[DEVICE_ID], \
+    command = 'adb -s {0} shell \'su -c \'taskset {1} -p {2}\'\''.format(device_config[config.DEVICE_ID], \
                                                                          bitmask, proc_id)
     subprocess.call(command, shell=True)
 
 def wake_phone_up(device_config):
     if device_config[config.DEVICE_TYPE] == config.DEVICE_PHONE:
-        command = 'adb -s {0} shell input keyevent KEYCODE_WAKEUP'.format(device_config[DEVICE_ID])
+        command = 'adb -s {0} shell input keyevent KEYCODE_WAKEUP'.format(device_config[config.DEVICE_ID])
         subprocess.call(command, shell=True)
         print 'Waking up the phone'
 
@@ -244,7 +244,7 @@ index = 0
 
 def start_taking_screenshot_every_x_s(device_config, interval, destination):
     if device_config[config.DEVICE_TYPE] == config.DEVICE_PHONE:
-        command = 'adb -s {0} shell screencap -p | perl -pe \'s/\\x0D\\x0A/\\x0A/g\' > {1}.png'.format(device_config[DEVICE_ID], os.path.join(destination, str(index)))
+        command = 'adb -s {0} shell screencap -p | perl -pe \'s/\\x0D\\x0A/\\x0A/g\' > {1}.png'.format(device_config[config.DEVICE_ID], os.path.join(destination, str(index)))
         subprocess.call(command, shell=True)
         global timer
         global index

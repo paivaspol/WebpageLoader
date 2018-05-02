@@ -5,14 +5,14 @@ import threading
 
 from time import sleep
 
-from utils import navigation_utils
+from utils import config, navigation_utils
 
 METHOD = 'method'
 PARAMS = 'params'
 REQUEST_ID = 'requestId'
 TIMESTAMP = 'timestamp'
 
-WAIT = 1.5
+WAIT = 1
 PAGE_STABLE_THRESHOLD = 5000 # 2s virtual time budget
 
 HTTP_PREFIX = 'http://'
@@ -31,11 +31,11 @@ def escape_page(url):
 
 class ChromeRDPWebsocketStreaming(object):
 
-    def __init__(self, ws_url, page_url, user_agent_str, collect_console, collect_tracing, message_callback, callback_page_done, preserve_cache, use_virtual_time_budget, get_main_html):
+    def __init__(self, ws_url, page_url, emulating_device_params, collect_console, collect_tracing, message_callback, callback_page_done, preserve_cache, use_virtual_time_budget, get_main_html):
         '''
         Initialize the object. 
         '''
-        # websocket.enableTrace(True)
+        websocket.enableTrace(True)
 
         # Conditions for a page to finish loading.
         self.originalRequestMs = None
@@ -55,7 +55,8 @@ class ChromeRDPWebsocketStreaming(object):
         self.collect_tracing = collect_tracing # Never start tracing.
         self.message_callback = message_callback
         self.callback_page_done = callback_page_done    # The callback method
-        self.user_agent = user_agent_str
+        # self.user_agent = user_agent_str
+        self.emulating_device_params = emulating_device_params
         self.debugging_url = ws_url
         self.preserve_cache = preserve_cache
         self.ws = websocket.WebSocketApp(ws_url,\
@@ -76,7 +77,6 @@ class ChromeRDPWebsocketStreaming(object):
         self.message_callback(self, message_obj, message)
         if METHOD not in message_obj:
             if message_obj['id'] == navigation_utils.METHOD_IDS['Network.getResponseBody']:
-                print message_obj
                 self.unmodified_html = message_obj['result']['body'].encode('utf-8')
                 self.waiting_for_main_html = False
 
@@ -90,7 +90,6 @@ class ChromeRDPWebsocketStreaming(object):
             elif self.get_main_html and \
                     message_obj[METHOD] == 'Network.loadingFinished' and \
                     message_obj[PARAMS]['requestId'] == self.mainHtmlRequestId:
-                print 'here'
                 self.waiting_for_main_html = True
                 navigation_utils.get_response_body(self.ws, self.mainHtmlRequestId)
 
@@ -167,11 +166,7 @@ class ChromeRDPWebsocketStreaming(object):
         if self.collect_console:
             self.enable_console_tracking(self.ws)
 
-        if self.user_agent is not None:
-            navigation_utils.set_user_agent(self.ws, self.user_agent)
-
-        if os.getenv("EMULATE_DEVICE", "") != "":
-            self.emulate_device(self.ws, os.getenv("EMULATE_DEVICE"))
+        self.emulate_device(self.ws, self.emulating_device_params)
 
         if not self.preserve_cache:
             self.clear_cache(self.ws)
@@ -194,83 +189,29 @@ class ChromeRDPWebsocketStreaming(object):
     def clear_cache(self, debug_connection):
         navigation_utils.clear_cache(debug_connection)
 
-    def emulate_device(self, debug_connection, device_name):
-        configs = [{
-            "device": {
-                "title": "Apple iPhone 6",
-                "screen": {
-                    "horizontal": {
-                        "width": 667,
-                        "height": 375
-                    },
-                    "device-pixel-ratio": 2,
-                    "vertical": {
-                        "width": 375,
-                        "height": 667
-                    }
-                },
-                "user-agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 8_0 like Mac OS X) AppleWebKit/600.1.3 (KHTML, like Gecko) Version/8.0 Mobile/12A4345d Safari/600.1.4",
-            }
-        },{
-            "device": {
-                "title": "Google Nexus 6",
-                "screen": {
-                    "horizontal": {
-                        "width": 732,
-                        "height": 412
-                    },
-                    "device-pixel-ratio": 3.5,
-                    "vertical": {
-                        "width": 412,
-                        "height": 732
-                    }
-                },
-                "user-agent": "Mozilla/5.0 (Linux; Android 5.1.1; Nexus 6 Build/LYZ28E) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/44.0.2403.20 Mobile Safari/537.36",
-            }
-        },{
-            "device": {
-                "title": "Google Nexus 10",
-                "screen": {
-                    "horizontal": {
-                        "width": 1280,
-                        "height": 800
-                    },
-                    "device-pixel-ratio": 2,
-                    "vertical": {
-                        "width": 800,
-                        "height": 1280
-                    }
-                },
-                "user-agent": "Mozilla/5.0 (Linux; Android 4.3; Nexus 10 Build/JSS15Q) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/42.0.2307.2 Safari/537.36",
-            }
-        }]
-
-        cfg = None
-        for c in configs:
-            if c["device"]["title"] == device_name:
-                cfg = c
-                break
-        if cfg is None:
-            valid_devices = ", ".join(c["device"]["title"] for c in configs)
-            raise ValueError("invalid device %s: known devices are %s" % (device_name, valid_devices))
-        navigation_utils.set_user_agent(debug_connection, cfg["device"]["user-agent"])
+    def emulate_device(self, debug_connection, device_params):
+        print device_params
+        user_agent = device_params[config.USER_AGENT]
+        if user_agent is not None:
+            navigation_utils.set_user_agent(debug_connection, user_agent)
         self.set_touch_mode(debug_connection)
-        self.set_device_metrics_override(
-            debug_connection,
-            cfg["device"]["screen"]["vertical"]["width"],
-            cfg["device"]["screen"]["vertical"]["height"])
+        self.set_device_metrics_override(debug_connection, device_params['width'], device_params['height'], device_params['density'])
 
     def set_touch_mode(self, conn):
         conn.send(json.dumps({"id": 23, "method": "Emulation.setTouchEmulationEnabled", "params": {"enabled": True}}))
         print 'enabled touch mode'
-        # sleep(WAIT)
 
-    def set_device_metrics_override(self, conn, width, height):
+    def set_device_metrics_override(self, conn, width, height, scale_factor):
         msg = { "id": 235, "method": "Emulation.setDeviceMetricsOverride", "params": {
-            "width": width, "height": height, "fontScaleFactor": 1, "fitWindow": False}}
+                "width": int(width),
+                "height": int(height), 
+                "fitWindow": False, 
+                "deviceScaleFactor": float(scale_factor),
+                "mobile": True
+            }
+        }
         conn.send(json.dumps(msg))
         print 'set device metrics override'
-        # sleep(WAIT)
 
 
     def disable_network_tracking(self, debug_connection):
@@ -280,7 +221,6 @@ class ChromeRDPWebsocketStreaming(object):
         disable_network = { "id": 2, "method": "Network.disable" }
         debug_connection.send(json.dumps(disable_network))
         print 'Disable network tracking.'
-        # sleep(WAIT)
 
     def disable_page_tracking(self, debug_connection):
         '''
@@ -289,7 +229,6 @@ class ChromeRDPWebsocketStreaming(object):
         disable_page = { 'id': 3, 'method': 'Page.disable' }
         debug_connection.send(json.dumps(disable_page))
         print 'Disable page tracking.'
-        # sleep(WAIT)
 
     def enable_network_tracking(self, debug_connection):
         '''
@@ -298,11 +237,9 @@ class ChromeRDPWebsocketStreaming(object):
         enable_network = { "id": 4, "method": "Network.enable" }
         debug_connection.send(json.dumps(enable_network))
         print 'Enabled network tracking.'
-        # sleep(WAIT)
         # disable_cache = { "id": 10, "method": "Network.setCacheDisabled", "params": { "cacheDisabled": True } }
         # debug_connection.send(json.dumps(disable_cache))
         # print 'Disable debugging connection.'
-        # sleep(WAIT)
 
     def enable_console_tracking(self, debug_connection):
         '''
@@ -311,7 +248,6 @@ class ChromeRDPWebsocketStreaming(object):
         enable_console = { "id": 5, "method": "Console.enable" }
         debug_connection.send(json.dumps(enable_console))
         print 'Enabled console tracking.'
-        # sleep(WAIT)
 
     def disable_console_tracking(self, debug_connection):
         '''
@@ -320,7 +256,6 @@ class ChromeRDPWebsocketStreaming(object):
         disable_console = { 'id': 6, 'method': 'Console.disable' }
         debug_connection.send(json.dumps(disable_console))
         print 'Disable console tracking.'
-        # sleep(WAIT)
 
     def enable_page_tracking(self, debug_connection):
         '''
@@ -329,7 +264,6 @@ class ChromeRDPWebsocketStreaming(object):
         enable_page = { 'id': 7, 'method': 'Page.enable' }
         debug_connection.send(json.dumps(enable_page))
         print 'Enabled page tracking.'
-        # sleep(WAIT)
 
 
     def enable_dom(self, debug_connection):
@@ -369,19 +303,15 @@ class ChromeRDPWebsocketStreaming(object):
         enable_page = { 'id': 8, 'method': 'Runtime.enable' }
         debug_connection.send(json.dumps(enable_page))
         print 'Enabled Runtime.'
-        # sleep(WAIT)
 
     def enable_trace_collection(self, debug_connection):
         '''
         Enables the tracing collection.
         '''
         enable_trace_collection = { "id": 9, 'method': 'Tracing.start', 'params': { 'categories': 'blink, devtools.timeline, disabled-by-default-devtools.timeline, disabled-by-default-devtools.screenshot', "options": "sampling-frequency=10000" } }
-        # enable_trace_collection = { "id": 9, 'method': 'Tracing.start', 'params': { 'categories': '-*, toplevel, loading, blink, devtools.timeline, disabled-by-default-devtools.timeline, disabled-by-default-devtools.timeline.frame, disabled-by-default-devtools.screenshot', "options": "sampling-frequency=10" } }
-        # enable_trace_collection = { "id": 9, 'method': 'Tracing.start', 'params': { 'categories': 'disabled-by-default-devtools.screenshot', "options": "sampling-frequency=1000000" } }
         debug_connection.send(json.dumps(enable_trace_collection))
         self.tracing_started = True
         print 'Enabled trace collection'
-        # sleep(WAIT)
 
     def stop_trace_collection(self, debug_connection):
         '''
@@ -406,7 +336,6 @@ class ChromeRDPWebsocketStreaming(object):
         '''
         Sets up the virtual time budget.
         '''
-        # debug_connection.send(json.dumps({ 'id': 315, 'method': 'Emulation.canEmulate' }))
         setup_virtual_time_budget = { 'id': 314, \
                 'method': 'Emulation.setVirtualTimePolicy', \
                 'params': { \
@@ -414,5 +343,4 @@ class ChromeRDPWebsocketStreaming(object):
                     "budget": PAGE_STABLE_THRESHOLD \
                 } \
         }
-        # print 'set virtual time budget: ' + json.dumps(setup_virtual_time_budget)
         debug_connection.send(json.dumps(setup_virtual_time_budget))

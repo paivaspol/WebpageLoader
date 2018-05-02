@@ -35,15 +35,10 @@ def main(device_configuration, url, reload_page):
 
     print 'Connected to Chrome...'
     device_configuration['page_id'] = page_id
-    user_agent_str = None
-    screen_size_config = None
-    if config.USER_AGENT in device_configuration:
-        user_agent_str = device_configuration[config.USER_AGENT]
-    if config.SCREEN_SIZE in device_configuration:
-        screen_size_config = device_configuration[config.SCREEN_SIZE]
+    emulating_device_params = device_configuration[config.EMULATING_DEVICE]
 
     if args.get_dependency_baseline:
-        debugging_socket = ChromeRDPWebsocketStreaming(debugging_url, url, user_agent_str, args.collect_console, args.collect_tracing, callback_on_received_event, None, args.preserve_cache, args.defer_stop, args.get_dom)
+        debugging_socket = ChromeRDPWebsocketStreaming(debugging_url, url, emulating_device_params, args.collect_console, args.collect_tracing, callback_on_received_event, None, args.preserve_cache, args.defer_stop, args.get_dom)
         def timeout_handler(a, b):
             callback_on_page_done_streaming(debugging_socket)
             sys.exit(0)
@@ -51,7 +46,7 @@ def main(device_configuration, url, reload_page):
         print 'Setting SIGTERM handler'
         signal.signal(signal.SIGTERM, timeout_handler)
     else:
-        debugging_socket = ChromeRDPWebsocketStreaming(debugging_url, url, user_agent_str, args.collect_console, args.collect_tracing, callback_on_received_event, callback_on_page_done_streaming, args.preserve_cache, args.defer_stop, args.get_dom)
+        debugging_socket = ChromeRDPWebsocketStreaming(debugging_url, url, emulating_device_params, args.collect_console, args.collect_tracing, callback_on_received_event, callback_on_page_done_streaming, args.preserve_cache, args.defer_stop, args.get_dom)
     debugging_socket.start()
 
 def get_debugging_url(device_configuration):
@@ -123,7 +118,7 @@ def callback_on_page_done_streaming(debugging_socket):
     debugging_socket.close_connection()
     print 'Closed debugging socket connection'
 
-    sleep(2)
+    sleep(1)
     final_url = common_module.escape_page(debugging_socket.url)
     base_dir = ConstructOutputDir(debugging_socket.url)
     new_debugging_websocket = websocket.create_connection(debugging_socket.debugging_url)

@@ -130,6 +130,7 @@ PAC_FILE_PATH = 'pac_file_path'
 SCREEN_SIZE = 'screen_size'
 USER_AGENT = 'user_agent'
 CHROME_BINARY = 'chrome_bin'
+EMULATING_DEVICE = 'emulating_device'
 
 # Hardcoded values for the Chrome instances.
 ANDROID_CHROME_INSTANCE = 'com.android.chrome/com.google.android.apps.chrome.Main'
@@ -168,26 +169,24 @@ def get_device_configuration(config_reader, device):
     elif device_type == DEVICE_MAC:
         device_config[CHROME_DESKTOP_DEBUG_PORT] = int(config_reader.get(device, CHROME_DESKTOP_DEBUG_PORT))
         device_config[CHROME_INSTANCE] = get_config(config_reader, device, CHROME_BINARY, MAC_CHROME_INSTANCE)
-        device_config[USER_AGENT] = get_config(config_reader, device, USER_AGENT, None)
+        device_config[EMULATING_DEVICE] = { USER_AGENT: get_config(config_reader, device, USER_AGENT, None) }
         populate_if_exists(device_config, config_reader, device, PAC_FILE_PATH)
 
     elif device_type == DEVICE_UBUNTU:
         device_config[CHROME_DESKTOP_DEBUG_PORT] = int(config_reader.get(device, CHROME_DESKTOP_DEBUG_PORT))
         device_config[CHROME_INSTANCE] = get_config(config_reader, device, CHROME_BINARY, UBUNTU_CHROME_INSTANCE)
-        device_config[USER_AGENT] = get_config(config_reader, device, USER_AGENT, None)
         populate_if_exists(device_config, config_reader, device, PAC_FILE_PATH)
         populate_if_exists(device_config, config_reader, device, IGNORE_CERTIFICATE_ERRORS)
         populate_if_exists(device_config, config_reader, device, EXTENSION)
         device_config[USER_DATA_DIR] = get_config(config_reader, device, USER_DATA_DIR, 'random')
         device_config[CHROME_RUNNING_MODE] = get_config(config_reader, device, CHROME_RUNNING_MODE, 'headless')
 
+        device_config[EMULATING_DEVICE] = { USER_AGENT: get_config(config_reader, device, USER_AGENT, None) } 
         if config_reader.has_option(device, SCREEN_SIZE):
             screen_configs = config_reader.get(device, SCREEN_SIZE).split('$')
             screen_config_dict = dict()
             for screen_config in screen_configs:
                 key, value = screen_config.split("=")
                 screen_config_dict[key] = value
-            device_config[SCREEN_SIZE] = screen_config_dict
-    
-
+            device_config[EMULATING_DEVICE].update(screen_config_dict)
     return device_config
