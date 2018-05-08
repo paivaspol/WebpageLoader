@@ -158,9 +158,11 @@ def get_pages(pages_file):
     pages = []
     with open(pages_file, 'rb') as input_file:
         for raw_line in input_file:
-            if not raw_line.startswith('#'):
-                line = raw_line.strip().split()
-                pages.append(line[len(line) - 1])
+            line = raw_line.strip()
+            if line.startswith('#') or len(line) == 0:
+                continue
+            line = raw_line.strip().split()
+            pages.append(line[len(line) - 1])
     return pages
 
 def get_pages_with_redirected_url(pages_file):

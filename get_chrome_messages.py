@@ -35,7 +35,7 @@ def main(device_configuration, url, reload_page):
 
     print 'Connected to Chrome...'
     device_configuration['page_id'] = page_id
-    emulating_device_params = device_configuration[config.EMULATING_DEVICE]
+    emulating_device_params = device_configuration[config.EMULATING_DEVICE] if config.EMULATING_DEVICE in device_configuration else None
 
     if args.get_dependency_baseline:
         debugging_socket = ChromeRDPWebsocketStreaming(debugging_url, url, emulating_device_params, args.collect_console, args.collect_tracing, callback_on_received_event, None, args.preserve_cache, args.defer_stop, args.get_dom)

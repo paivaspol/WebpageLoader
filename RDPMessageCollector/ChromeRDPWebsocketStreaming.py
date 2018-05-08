@@ -35,7 +35,7 @@ class ChromeRDPWebsocketStreaming(object):
         '''
         Initialize the object. 
         '''
-        websocket.enableTrace(True)
+        # websocket.enableTrace(True)
 
         # Conditions for a page to finish loading.
         self.originalRequestMs = None
@@ -47,6 +47,7 @@ class ChromeRDPWebsocketStreaming(object):
         self.use_virtual_time_budget = use_virtual_time_budget
         self.virtual_time_expired = False
         self.get_main_html = get_main_html
+        self.navigation_started = False
         self.waiting_for_main_html = False
         self.unmodified_html = ''
 
@@ -73,11 +74,15 @@ class ChromeRDPWebsocketStreaming(object):
         '''
         Handle each message.
         '''
+        if not self.navigation_started:
+            return 
+
         message_obj = json.loads(message)
         self.message_callback(self, message_obj, message)
+        # print message
         if METHOD not in message_obj:
             if message_obj['id'] == navigation_utils.METHOD_IDS['Network.getResponseBody']:
-                self.unmodified_html = message_obj['result']['body'].encode('utf-8')
+                self.unmodified_html = message_obj['result']['body'].encode('utf-8') if 'result' in message_obj else '<failed to get HTML response>'
                 self.waiting_for_main_html = False
 
         elif message_obj[METHOD].startswith('Network'):
@@ -113,17 +118,8 @@ class ChromeRDPWebsocketStreaming(object):
                 self.tracingCollectionCompleted = True
 
         elif message_obj[METHOD].startswith('Emulation'):
-            # print message_obj
             if message_obj[METHOD] == 'Emulation.virtualTimeBudgetExpired':
-                # print 'Virtual time expired'
                 self.virtual_time_expired = True
-
-        #print '{0} {1} {2}'.format(self.originalRequestMs, self.domContentEventFiredMs, self.loadEventFiredMs)
-        #if self.originalRequestMs is not None and \
-        #    self.domContentEventFiredMs is not None and \
-        #    self.loadEventFiredMs is not None :
-        #    if self.collect_tracing and self.tracing_started:
-        #        self.stop_trace_collection(self.ws)
 
         if (not self.use_virtual_time_budget and \
             (self.originalRequestMs is not None and \
@@ -166,7 +162,8 @@ class ChromeRDPWebsocketStreaming(object):
         if self.collect_console:
             self.enable_console_tracking(self.ws)
 
-        self.emulate_device(self.ws, self.emulating_device_params)
+        if self.emulating_device_params is not None:
+            self.emulate_device(self.ws, self.emulating_device_params)
 
         if not self.preserve_cache:
             self.clear_cache(self.ws)
@@ -178,6 +175,7 @@ class ChromeRDPWebsocketStreaming(object):
 
         print 'navigating to url: ' + str(self.url)
         navigation_utils.navigate_to_page(self.ws, self.url)
+        self.navigation_started = True
 
         if self.use_virtual_time_budget:
             self.set_virtual_time_budget(self.ws)
