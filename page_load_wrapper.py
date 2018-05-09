@@ -278,7 +278,7 @@ def shutdown_browser(device_name):
     print 'Stopping Chrome...'
     phone_connection_utils.stop_chrome(device_config_obj)
 
-def load_page(raw_line, run_index, output_dir, start_measurements, device_name, disable_tracing, record_contents=False, device_config_obj=None):
+def load_page(url, run_index, output_dir, start_measurements, device_name, disable_tracing, record_contents=False, device_config_obj=None):
     # Create necessary directories
     base_output_dir = output_dir
     if not os.path.exists(base_output_dir):
@@ -290,9 +290,9 @@ def load_page(raw_line, run_index, output_dir, start_measurements, device_name, 
     # Get the device configuration
     device_config = get_device_config_path(device_name)
 
-    line = raw_line.strip()
+    url = url.strip()
     chrome_msg_path = os.path.join(args.current_path, 'get_chrome_messages.py')
-    cmd = 'python {0} {1} {2} {3} --output-dir {4}'.format(chrome_msg_path, device_config, device_name, line, output_dir_run) 
+    cmd = 'python {0} {1} {2} "{3}" --output-dir {4}'.format(chrome_msg_path, device_config, device_name, url, output_dir_run) 
     if disable_tracing:
         cmd += ' --disable-tracing'
     if record_contents:
