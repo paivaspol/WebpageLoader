@@ -12,21 +12,6 @@ from PageLoadException import PageLoadException
 
 from utils import phone_connection_utils, chrome_utils, config
 
-# Available devices to use.
-DEVICES = {
-        # Mobile devices
-        'Nexus_6': '/device_config/nexus6.cfg',
-        'Nexus_6_chromium': '/device_config/nexus6_chromium.cfg',
-        'Nexus_6_2': '/device_config/nexus6_2.cfg',
-        'Nexus_6_2_chromium': '/device_config/nexus6_2_chromium.cfg',
-        'Nexus_5': '/device_config/nexus5.cfg',
-        'pixel2': '/device_config/pixel2.cfg',
-
-        # Desktop devices
-        'ubuntu': '/device_config/ubuntu.cfg',
-        'ubuntu_with_cookies': '/device_config/ubuntu_with_cookies.cfg',
-        'mac': '/device_config/mac.cfg',
-}
 DEFAULT_DEVICE = 'Nexus_6'
 
 TIMEOUT = 1 * 60 # set to 3 minutes
@@ -288,7 +273,7 @@ def load_page(url, run_index, output_dir, start_measurements, device_name, disab
         os.mkdir(output_dir_run)
 
     # Get the device configuration
-    device_config = get_device_config_path(device_name)
+    device_config = common_module.get_device_config_path(device_name, args.current_path)
 
     url = url.strip()
     chrome_msg_path = os.path.join(args.current_path, 'get_chrome_messages.py')
@@ -323,23 +308,12 @@ def get_device_config_obj(device_name):
     '''
     global device_config_obj
     if device_config_obj is None:
-        device_config_path = get_device_config_path(device_name)
+        device_config_path = common_module.get_device_config_path(device_name, args.current_path)
         config_reader = ConfigParser()
         config_reader.read(device_config_path)
         device_config_obj = config.get_device_configuration(config_reader, device_name)
     return device_config_obj
 
-
-def get_device_config_path(device_name):
-    '''
-    Returns the path to the config of the device.
-
-    If the device does not exists, the script will terminate.
-    '''
-    if device_name in DEVICES:
-        return args.current_path + DEVICES[device_name]
-    print 'available devices: {0}'.format(str([ d for d in DEVICES.keys() ]))
-    exit()
 
 
 if __name__ == '__main__':

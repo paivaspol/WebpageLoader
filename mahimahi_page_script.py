@@ -36,7 +36,7 @@ def main(config_filename, pages, iterations, device_name, mode, output_dir):
     completed_pages = []
     try:
         signal.signal(signal.SIGALRM, timeout_handler) # Setup the timeout handler
-        device_info = common_module.get_device_config(device_name) # Get the information about the device.
+        device_info = config.get_device_config(device_name) # Get the information about the device.
         common_module.initialize_browser(device_info) # Start the browser
         replay_configurations = replay_config_utils.get_page_replay_config(config_filename)
         current_time = time.time()
@@ -427,7 +427,7 @@ def load_page(raw_line, run_index, output_dir, start_measurements, device_info, 
         os.mkdir(output_dir_run)
 
     page = raw_line.strip()
-    cmd = 'python get_chrome_messages.py {1} {2} {0} --output-dir {3}'.format(page, device_info[1], device_info[0], output_dir_run)
+    cmd = 'python get_chrome_messages.py {1} {2} "{0}" --output-dir {3}'.format(page, device_info[1], device_info[0], output_dir_run)
     signal.alarm(int(TIMEOUT))
     if args.get_chromium_logs:
         cmd += ' --get-chromium-logs'

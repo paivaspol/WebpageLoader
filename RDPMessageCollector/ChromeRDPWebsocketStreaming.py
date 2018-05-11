@@ -35,7 +35,7 @@ class ChromeRDPWebsocketStreaming(object):
         '''
         Initialize the object. 
         '''
-        # websocket.enableTrace(True)
+        websocket.enableTrace(True)
 
         # Conditions for a page to finish loading.
         self.originalRequestMs = None
@@ -56,7 +56,6 @@ class ChromeRDPWebsocketStreaming(object):
         self.collect_tracing = collect_tracing # Never start tracing.
         self.message_callback = message_callback
         self.callback_page_done = callback_page_done    # The callback method
-        # self.user_agent = user_agent_str
         self.emulating_device_params = emulating_device_params
         self.debugging_url = ws_url
         self.preserve_cache = preserve_cache

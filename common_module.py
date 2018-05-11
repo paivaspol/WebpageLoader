@@ -62,51 +62,44 @@ def parse_page_start_end_time(filename):
         chrome_ts_load_event = float(line[4])
         return (line[0], (web_perf_nav_start, web_perf_load_event), (chrome_ts_nav_start, chrome_ts_load_event))
 
-NEXUS_6_CONFIG = '/device_config/nexus6.cfg'
-NEXUS_6 = 'Nexus_6'
-NEXUS_6_CHROMIUM_CONFIG = '/device_config/nexus6_chromium.cfg'
-NEXUS_6_CHROMIUM = 'Nexus_6_chromium'
-NEXUS_6_2_CONFIG = '/device_config/nexus6_2.cfg'
-NEXUS_6_2 = 'Nexus_6_2'
-NEXUS_6_2_CHROMIUM_CONFIG = '/device_config/nexus6_2_chromium.cfg'
-NEXUS_6_2_CHROMIUM = 'Nexus_6_2_chromium'
-NEXUS_5_CONFIG = '/device_config/nexus5.cfg'
-NEXUS_5 = 'Nexus_5'
-MAC_CONFIG = '/device_config/mac.cfg'
-MAC = 'mac'
-UBUNTU_CONFIG = '/device_config/ubuntu.cfg'
-UBUNTU = 'ubuntu'
+# Available devices to use.
+DEVICES = {
+        # Mobile devices
+        'Nexus_6': '/device_config/nexus6.cfg',
+        'Nexus_6_chromium': '/device_config/nexus6_chromium.cfg',
+        'Nexus_6_2': '/device_config/nexus6_2.cfg',
+        'Nexus_6_2_chromium': '/device_config/nexus6_2_chromium.cfg',
+        'Nexus_5': '/device_config/nexus5.cfg',
+        'pixel2': '/device_config/pixel2.cfg',
+
+        # Desktop devices
+        'ubuntu': '/device_config/ubuntu.cfg',
+        'ubuntu_with_cookies': '/device_config/ubuntu_with_cookies.cfg',
+        'mac': '/device_config/mac.cfg',
+}
+
+def get_device_config_path(device_name, current_path):
+    '''
+    Returns the path to the config of the device.
+
+    If the device does not exists, the script will terminate.
+    '''
+    if device_name in DEVICES:
+        return current_path + DEVICES[device_name]
+    print 'available devices: {0}'.format(str([ d for d in DEVICES.keys() ]))
+    exit()
 
 def get_device_config(device, running_path='.'):
+    from utils import config
+
     device_config_filename = ''
     device_config_object = None
-    if device == NEXUS_6:
-        device = NEXUS_6
-        device_config_filename = running_path + NEXUS_6_CONFIG
-    elif device == NEXUS_6_2:
-        device = NEXUS_6_2
-        device_config_filename = running_path + NEXUS_6_2_CONFIG
-    elif device == NEXUS_5:
-        device = NEXUS_5
-        device_config_filename = running_path + NEXUS_5_CONFIG
-    elif device == MAC:
-        device = MAC
-        device_config_filename = running_path + MAC_CONFIG
-    elif device == NEXUS_6_CHROMIUM:
-        device = NEXUS_6_CHROMIUM
-        device_config_filename = running_path + NEXUS_6_CHROMIUM_CONFIG
-    elif device == NEXUS_6_2_CHROMIUM:
-        device = NEXUS_6_2_CHROMIUM
-        device_config_filename = running_path + NEXUS_6_2_CHROMIUM_CONFIG
-    elif device == UBUNTU:
-        device = UBUNTU
-        device_config_filename = running_path + UBUNTU_CONFIG
-    else:
-        print 'available devices: {0}, {1}, {2}, {3}, {4}, {5}'.format(NEXUS_6, NEXUS_6_2, NEXUS_5, NEXUS_6_CHROMIUM, NEXUS_6_2_CHROMIUM, MAC, UBUNTU)
-        exit(1)
+    device_config_filename = get_device_config_path(device, running_path)
+
     config_reader = ConfigParser()
     config_reader.read(device_config_filename)
-    device_config_obj = phone_connection_utils.get_device_configuration(config_reader, device)
+    device_config_obj = config.get_device_configuration(config_reader, device)
+
     return device, device_config_filename, device_config_obj
 
 def initialize_browser(device_info):
