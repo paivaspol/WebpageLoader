@@ -192,8 +192,9 @@ class ChromeRDPWebsocketStreaming(object):
         user_agent = device_params[config.USER_AGENT]
         if user_agent is not None:
             navigation_utils.set_user_agent(debug_connection, user_agent)
-        self.set_touch_mode(debug_connection)
-        self.set_device_metrics_override(debug_connection, device_params['width'], device_params['height'], device_params['density'])
+        if len(device_params) > 1:
+            self.set_touch_mode(debug_connection)
+            self.set_device_metrics_override(debug_connection, device_params['width'], device_params['height'], device_params['density'])
 
     def set_touch_mode(self, conn):
         conn.send(json.dumps({"id": 23, "method": "Emulation.setTouchEmulationEnabled", "params": {"enabled": True}}))
