@@ -195,4 +195,7 @@ if __name__ == '__main__':
 
     # Get the device configuration.
     device_config = config.get_device_configuration(config_reader, args.device)
-    main(device_config, args.url, args.reload_page)
+    url = args.url
+    if url.startswith('"'):
+        url = url[1:len(url) - 1]
+    main(device_config, url, args.reload_page)
