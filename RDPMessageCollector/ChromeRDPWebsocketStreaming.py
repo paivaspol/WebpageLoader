@@ -35,7 +35,7 @@ class ChromeRDPWebsocketStreaming(object):
         '''
         Initialize the object. 
         '''
-        websocket.enableTrace(True)
+        # websocket.enableTrace(True)
 
         # Conditions for a page to finish loading.
         self.originalRequestMs = None
@@ -157,6 +157,7 @@ class ChromeRDPWebsocketStreaming(object):
         '''
         self.enable_network_tracking(self.ws)
         self.enable_page_tracking(self.ws)
+        self.ignore_cert_errors(self.ws)
         
         if self.collect_console:
             self.enable_console_tracking(self.ws)
@@ -319,6 +320,12 @@ class ChromeRDPWebsocketStreaming(object):
         debug_connection.send(json.dumps(disable_trace_collection))
         self.tracing_started = False
         print 'Disables trace collection'
+
+
+    def ignore_cert_errors(self, debug_connection):
+        ignore_cert_errors = { "id": 157, 'method': 'Security.setIgnoreCertificateErrors', 'params': { 'ignore': True }}
+        debug_connection.send(json.dumps(ignore_cert_errors))
+        print 'Ignore cert errors'
 
 
     def capture_screenshot(self, debug_connection):
