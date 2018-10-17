@@ -16,9 +16,7 @@ import time
 import urlparse
 
 from time import sleep
-from utils import replay_config_utils
-from utils import chrome_utils
-from utils import phone_connection_utils
+from utils import replay_config_utils, chrome_utils, phone_connection_utils, config
 
 WAIT = 2
 TIMEOUT = int(1 * 60)

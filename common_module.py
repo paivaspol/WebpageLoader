@@ -78,7 +78,7 @@ DEVICES = {
         'mac': '/device_config/mac.cfg',
 }
 
-def get_device_config_path(device_name, current_path):
+def get_device_config_path(device_name, current_path='.'):
     '''
     Returns the path to the config of the device.
 
@@ -117,6 +117,8 @@ def initialize_browser(device_info):
             closed_tabs = True
         except requests.exceptions.ConnectionError as e:
             pass
+    print 'here'
+    chrome_utils.create_tab(device_info[2])
 
 def check_previous_page_load(current_run_index, base_output_dir, raw_line):
     if current_run_index > 0:

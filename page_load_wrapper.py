@@ -290,6 +290,8 @@ def load_page(url, run_index, output_dir, start_measurements, device_name, disab
         cmd += ' --defer-stop'
     if args.get_dom:
         cmd += ' --get-dom'
+    if args.take_heap_snapshot:
+        cmd += ' --take-heap-snapshot'
     subprocess.Popen(cmd, shell=True).wait()
 
 def bring_chrome_to_foreground(device_name):
@@ -330,6 +332,7 @@ if __name__ == '__main__':
     parser.add_argument('--defer-stop', default=False, action='store_true')
     parser.add_argument('--get-dom', default=False, action='store_true')
     parser.add_argument('--current-path', default='.')
+    parser.add_argument('--take-heap-snapshot', default=False, action='store_true')
     args = parser.parse_args()
 
     # Initialize globals

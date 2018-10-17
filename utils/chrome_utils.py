@@ -57,7 +57,7 @@ def get_debugging_url(device_configuration):
 
     if target_tab is None:
         # Clear all existing pages.
-        close_all_tabs(device_configuration)
+        # close_all_tabs(device_configuration)
 
         create_tab(device_configuration)
         base_url = 'http://localhost:{0}/json'

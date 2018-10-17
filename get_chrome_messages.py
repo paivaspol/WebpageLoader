@@ -36,9 +36,10 @@ def main(device_configuration, url, reload_page):
     print 'Connected to Chrome...'
     device_configuration['page_id'] = page_id
     emulating_device_params = device_configuration[config.EMULATING_DEVICE] if config.EMULATING_DEVICE in device_configuration else None
+    network_params = device_configuration[config.NETWORK] if config.NETWORK in device_configuration else None
 
     if args.get_dependency_baseline:
-        debugging_socket = ChromeRDPWebsocketStreaming(debugging_url, url, emulating_device_params, args.collect_console, args.collect_tracing, callback_on_received_event, None, args.preserve_cache, args.defer_stop, args.get_dom)
+        debugging_socket = ChromeRDPWebsocketStreaming(debugging_url, url, emulating_device_params, network_params, args.collect_console, args.collect_tracing, callback_on_received_event, None, args.preserve_cache, args.defer_stop, args.get_dom, args.take_heap_snapshot)
         def timeout_handler(a, b):
             callback_on_page_done_streaming(debugging_socket)
             sys.exit(0)
@@ -46,7 +47,7 @@ def main(device_configuration, url, reload_page):
         print 'Setting SIGTERM handler'
         signal.signal(signal.SIGTERM, timeout_handler)
     else:
-        debugging_socket = ChromeRDPWebsocketStreaming(debugging_url, url, emulating_device_params, args.collect_console, args.collect_tracing, callback_on_received_event, callback_on_page_done_streaming, args.preserve_cache, args.defer_stop, args.get_dom)
+        debugging_socket = ChromeRDPWebsocketStreaming(debugging_url, url, emulating_device_params, network_params, args.collect_console, args.collect_tracing, callback_on_received_event, callback_on_page_done_streaming, args.preserve_cache, args.defer_stop, args.get_dom, args.take_heap_snapshot)
     debugging_socket.start()
 
 def get_debugging_url(device_configuration):
@@ -128,7 +129,6 @@ def callback_on_page_done_streaming(debugging_socket):
     # print 'output dir: ' + base_dir
     print 'Load time: ' + str((start_time, end_time)) + ' ' + str((end_time - start_time))
     write_page_start_end_time(final_url, base_dir, start_time, end_time, dom_content_loaded, -1, -1)
-    print 'getting DOM tree'
 
     if args.record_content:
         body = navigation_utils.get_modified_html(new_debugging_websocket)
@@ -142,6 +142,10 @@ def callback_on_page_done_streaming(debugging_socket):
         dom = navigation_utils.get_dom_tree(new_debugging_websocket)
         with open(os.path.join(base_dir, 'dom'), 'wb') as output_file:
             output_file.write(dom)
+
+    if args.take_heap_snapshot:
+        with open(os.path.join(base_dir, 'js_heap_snapshot'), 'w') as output_file:
+            output_file.write(debugging_socket.heap_snapshot_str)
 
     navigation_utils.navigate_to_page(new_debugging_websocket, 'about:blank')
     # sleep(0.2)
@@ -186,6 +190,7 @@ if __name__ == '__main__':
     argparser.add_argument('--preserve-cache', default=False, action='store_true')
     argparser.add_argument('--defer-stop', default=False, action='store_true')
     argparser.add_argument('--get-dom', default=False, action='store_true')
+    argparser.add_argument('--take-heap-snapshot', default=False, action='store_true')
     args = argparser.parse_args()
 
     # Setup the config filename

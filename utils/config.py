@@ -131,6 +131,7 @@ SCREEN_SIZE = 'screen_size'
 USER_AGENT = 'user_agent'
 CHROME_BINARY = 'chrome_bin'
 EMULATING_DEVICE = 'emulating_device'
+NETWORK = 'network'
 
 # Hardcoded values for the Chrome instances.
 ANDROID_CHROME_INSTANCE = 'com.android.chrome/com.google.android.apps.chrome.Main'
@@ -156,6 +157,19 @@ def get_device_configuration(config_reader, device):
         '''
         if config_reader.has_option(section, key):
             device_config[key] = config_reader.get(section, key)
+
+
+    def extract_kv_config(device_config, config_reader, section, key):
+        '''
+        Extracts the key value configurations.
+        '''
+        configs = config_reader.get(section, key).split('$')
+        config_dict = dict()
+        for config in configs:
+            key, value = config.split("=")
+            config_dict[key] = value
+        return config_dict
+
 
     device_config = dict()
     device_config[IP] = config_reader.get(device, IP)
@@ -183,10 +197,9 @@ def get_device_configuration(config_reader, device):
 
         device_config[EMULATING_DEVICE] = { USER_AGENT: get_config(config_reader, device, USER_AGENT, None) } 
         if config_reader.has_option(device, SCREEN_SIZE):
-            screen_configs = config_reader.get(device, SCREEN_SIZE).split('$')
-            screen_config_dict = dict()
-            for screen_config in screen_configs:
-                key, value = screen_config.split("=")
-                screen_config_dict[key] = value
+            screen_config_dict = extract_kv_config(device_config, config_reader, device, SCREEN_SIZE)
             device_config[EMULATING_DEVICE].update(screen_config_dict)
+        if config_reader.has_option(device, NETWORK):
+            device_config[NETWORK] = extract_kv_config(device_config, config_reader, device, NETWORK)
+
     return device_config

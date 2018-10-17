@@ -1,6 +1,6 @@
 from argparse import ArgumentParser
 
-import simplejson as json
+import json
 import os
 
 def main(root_dir, original_pages):
@@ -11,10 +11,10 @@ def main(root_dir, original_pages):
         if not os.path.exists(network_filename):
             continue
         first_url, url = get_url(network_filename, page)
-        mapping[first_url] = url
+        print first_url + ' ' + url
+        # mapping[first_url] = url
 
     for page in original_pages:
-        # print page
         if page in mapping:
             url = mapping[page]
             if args.print_first_url:

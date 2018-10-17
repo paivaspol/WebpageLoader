@@ -14,6 +14,9 @@ global chrome_proc
 chrome_proc = None
 global devnull
 
+global random_token
+random_token = None
+
 def start_chrome(device_configuration):
     '''
     Setup and run chrome on Android.
@@ -36,10 +39,19 @@ def start_chrome(device_configuration):
         if device_configuration[config.CHROME_RUNNING_MODE] == 'xvfb':
             cmd = [ 'xvfb-run',  '--server-args="-screen 0, 1920x1080x16"', 'dbus-launch', '--exit-with-session', device_configuration[config.CHROME_INSTANCE] ]
 
-        user_data_dir = '/tmp/chrome-{0}'.format(random.random())
-        if device_configuration[config.USER_DATA_DIR] != 'random':
+        args = '--remote-debugging-port={0} --disable-logging --enable-devtools-experiments --no-first-run'.format(device_configuration[config.CHROME_DESKTOP_DEBUG_PORT])
+
+        if device_configuration[config.USER_DATA_DIR] != 'random' and \
+                device_configuration[config.USER_DATA_DIR] != '[DEFAULT]':
             user_data_dir = device_configuration[config.USER_DATA_DIR]
-        args = '--remote-debugging-port={0} --disable-logging --enable-devtools-experiments --user-data-dir={1} --no-first-run'.format(device_configuration[config.CHROME_DESKTOP_DEBUG_PORT], user_data_dir)
+            args += ' --user-data-dir=' + user_data_dir
+        elif device_configuration[config.USER_DATA_DIR] != '[DEFAULT]':
+            global random_token
+            if random_token is None:
+                random_token = random.random()
+
+            user_data_dir = '/tmp/chrome-{0}'.format(random_token)
+            args += ' --user-data-dir=' + user_data_dir
 
         if config.PAC_FILE_PATH in device_configuration:
             args += ' --proxy-pac-url={0}'.format(device_configuration[config.PAC_FILE_PATH])
