@@ -37,7 +37,8 @@ def start_chrome(device_configuration):
         print "Run experiment chrome"
         cmd = [ device_configuration[config.CHROME_INSTANCE] ]
         if device_configuration[config.CHROME_RUNNING_MODE] == 'xvfb':
-            cmd = [ 'xvfb-run',  '--server-args="-screen 0, 1920x1080x16"', 'dbus-launch', '--exit-with-session', device_configuration[config.CHROME_INSTANCE] ]
+            # cmd = [ 'xvfb-run',  '--server-args="-screen 0, 1920x1080x16"', 'dbus-launch', '--exit-with-session', device_configuration[config.CHROME_INSTANCE] ]
+            cmd = [ 'xvfb-run',  '--server-args="-screen 0, 1024x768x16"', 'dbus-launch', '--exit-with-session', device_configuration[config.CHROME_INSTANCE] ]
 
         args = '--remote-debugging-port={0} --disable-logging --enable-devtools-experiments --no-first-run'.format(device_configuration[config.CHROME_DESKTOP_DEBUG_PORT])
 

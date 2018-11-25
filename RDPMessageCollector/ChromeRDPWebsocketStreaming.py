@@ -116,7 +116,6 @@ class ChromeRDPWebsocketStreaming(object):
                     METHOD] == 'Page.domContentEventFired' and self.start_page:
                 self.domContentEventFiredMs = message_obj[PARAMS][
                     TIMESTAMP] * 1000
-                self.take_heap_snapshot(self.ws)
             elif message_obj[
                     METHOD] == 'Page.loadEventFired' and self.start_page:
                 self.loadEventFiredMs = message_obj[PARAMS][TIMESTAMP] * 1000
@@ -125,6 +124,11 @@ class ChromeRDPWebsocketStreaming(object):
                     self.tracing_started:
                     print('Stopping trace collection after onload')
                     self.stop_trace_collection(self.ws)
+
+
+                if self.should_take_heap_snapshot:
+                    self.take_heap_snapshot(self.ws)
+
             elif message_obj[METHOD] == 'Page.javascriptDialogOpening':
                 if message_obj[PARAMS]['type'] == 'alert' or \
                     message_obj[PARAMS]['type'] == 'beforeunload':
