@@ -138,6 +138,7 @@ ANDROID_CHROME_INSTANCE = 'com.android.chrome/com.google.android.apps.chrome.Mai
 ANDROID_CHROMIUM_INSTANCE = 'org.chromium.chrome/com.google.android.apps.chrome.Main'
 MAC_CHROME_INSTANCE = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
 UBUNTU_CHROME_INSTANCE = '/opt/google/chrome/google-chrome'
+# UBUNTU_CHROME_INSTANCE = '/usr/bin/chromium-browser'
 
 def get_device_configuration(config_reader, device):
     '''

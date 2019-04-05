@@ -13,7 +13,7 @@ REQUEST_ID = 'requestId'
 TIMESTAMP = 'timestamp'
 
 WAIT = 1
-PAGE_STABLE_THRESHOLD = 10000  # 2s virtual time budget
+PAGE_STABLE_THRESHOLD = 20000  # 2s virtual time budget
 
 HTTP_PREFIX = 'http://'
 HTTPS_PREFIX = 'https://'
@@ -90,11 +90,8 @@ class ChromeRDPWebsocketStreaming(object):
         self.message_callback(self, message_obj, message)
         # print message
         if METHOD not in message_obj:
-            if message_obj['id'] == navigation_utils.METHOD_IDS[
-                    'Network.getResponseBody']:
-                self.unmodified_html = message_obj['result']['body'].encode(
-                    'utf-8'
-                ) if 'result' in message_obj else '<failed to get HTML response>'
+            if message_obj['id'] == navigation_utils.METHOD_IDS['Network.getResponseBody']: 
+                self.unmodified_html = message_obj['result']['body'].encode( 'utf-8') if 'result' in message_obj else '<failed to get HTML response>'
                 self.waiting_for_main_html = False
 
         elif message_obj[METHOD].startswith('Network'):
@@ -118,13 +115,13 @@ class ChromeRDPWebsocketStreaming(object):
                     TIMESTAMP] * 1000
             elif message_obj[
                     METHOD] == 'Page.loadEventFired' and self.start_page:
+                print('Onload fired')
                 self.loadEventFiredMs = message_obj[PARAMS][TIMESTAMP] * 1000
                 if not self.use_virtual_time_budget and \
                     self.collect_tracing and \
                     self.tracing_started:
                     print('Stopping trace collection after onload')
                     self.stop_trace_collection(self.ws)
-
 
                 if self.should_take_heap_snapshot:
                     self.take_heap_snapshot(self.ws)
@@ -163,6 +160,10 @@ class ChromeRDPWebsocketStreaming(object):
                     # parsed.
                     parse_succeeded = False
                 self.heap_snapshot_done = parse_succeeded
+
+        if self.callback_page_done is None:
+            # We want to keep collecting the logs.
+            return
 
 
         if (not self.use_virtual_time_budget and \
@@ -309,7 +310,7 @@ class ChromeRDPWebsocketStreaming(object):
         '''
         Enables Console Tracking.
         '''
-        enable_console = {"id": 5, "method": "Console.enable"}
+        enable_console = {"id": 5, "method": "Log.enable"}
         debug_connection.send(json.dumps(enable_console))
         print 'Enabled console tracking.'
 
@@ -317,7 +318,7 @@ class ChromeRDPWebsocketStreaming(object):
         '''
         Disable Console tracking in Chrome.
         '''
-        disable_console = {'id': 6, 'method': 'Console.disable'}
+        disable_console = {'id': 6, 'method': 'Log.disable'}
         debug_connection.send(json.dumps(disable_console))
         print 'Disable console tracking.'
 

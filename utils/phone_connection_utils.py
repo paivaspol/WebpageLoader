@@ -40,7 +40,7 @@ def start_chrome(device_configuration):
             # cmd = [ 'xvfb-run',  '--server-args="-screen 0, 1920x1080x16"', 'dbus-launch', '--exit-with-session', device_configuration[config.CHROME_INSTANCE] ]
             cmd = [ 'xvfb-run',  '--server-args="-screen 0, 1024x768x16"', 'dbus-launch', '--exit-with-session', device_configuration[config.CHROME_INSTANCE] ]
 
-        args = '--remote-debugging-port={0} --disable-logging --enable-devtools-experiments --no-first-run'.format(device_configuration[config.CHROME_DESKTOP_DEBUG_PORT])
+        args = '--remote-debugging-port={0} --disable-logging --enable-devtools-experiments --no-first-run --disable-features=IsolateOrigins,site-per-process'.format(device_configuration[config.CHROME_DESKTOP_DEBUG_PORT])
 
         if device_configuration[config.USER_DATA_DIR] != 'random' and \
                 device_configuration[config.USER_DATA_DIR] != '[DEFAULT]':
@@ -71,7 +71,8 @@ def start_chrome(device_configuration):
         global chrome_proc
         global devnull
         devnull = open(os.devnull, 'w')
-        chrome_proc = subprocess.Popen(' '.join(cmd), stdout=devnull, stderr=devnull, shell=True)
+        # chrome_proc = subprocess.Popen(' '.join(cmd), stdout=devnull, stderr=devnull, shell=True)
+        chrome_proc = subprocess.Popen(cmd, stdout=devnull, stderr=devnull)
         # chrome_proc = subprocess.Popen(' '.join(cmd), stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
         sleep(3)
         return chrome_proc
@@ -98,6 +99,7 @@ def stop_chrome(device_configuration):
         device_configuration[config.DEVICE_TYPE] == config.DEVICE_UBUNTU:
         global chrome_proc
         global devnull
+        print('stopping chrome: ' + str(chrome_proc))
         if chrome_proc is not None:
             # stdout, stderr = chrome_proc.communicate()
             # print stdout

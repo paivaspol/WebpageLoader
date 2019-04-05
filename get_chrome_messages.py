@@ -101,7 +101,7 @@ def callback_on_received_event(debugging_socket, network_message, network_messag
         with open(network_filename, 'ab') as output_file:
             output_file.write('{0}\n'.format(network_message_string))
 
-    elif 'method' in network_message and network_message['method'].startswith('Console'):
+    elif 'method' in network_message and network_message['method'].startswith('Log'):
         network_filename = os.path.join(base_dir, 'console_' + final_url)
         with open(network_filename, 'ab') as output_file:
             output_file.write('{0}\n'.format(network_message_string))
@@ -116,7 +116,11 @@ def callback_on_received_event(debugging_socket, network_message, network_messag
 
 
 def callback_on_page_done_streaming(debugging_socket):
-    debugging_socket.close_connection()
+    try:
+        debugging_socket.close_connection()
+    except Exception as e:
+        pass
+
     print 'Closed debugging socket connection'
 
     sleep(1)

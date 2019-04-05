@@ -14,7 +14,7 @@ from utils import phone_connection_utils, chrome_utils, config
 
 DEFAULT_DEVICE = 'Nexus_6'
 
-TIMEOUT = 1 * 60 # set to 3 minutes
+TIMEOUT = 1 * 30 # set to 30 seconds.
 PAUSE = 1
 BUFFER_FOR_TRACE = 5
 TRY_LIMIT = 2
@@ -40,15 +40,20 @@ def main(pages_file, num_repetitions, output_dir, start_measurements, device_nam
                     common_module.start_tcpdump_and_cpu_measurement(device_name)
                     bring_chrome_to_foreground(device_name)
                     signal.alarm(TIMEOUT)
-                    load_page(page, i, output_dir, start_measurements, device_name, disable_tracing)
+                    page_load_process = load_page(page, i, output_dir, start_measurements, device_name, disable_tracing)
+                    page_load_process.communicate()
                     if not disable_tracing:
                         # Kill the browser.
                         print 'initializing ' + str(i)
                         sleep(BUFFER_FOR_TRACE)
                         initialize_browser(device_name)
                     signal.alarm(0) # Reset the alarm
+
                     while common_module.check_previous_page_load(i, output_dir, page):
-                        load_page(page, i, output_dir, start_measurements, device_name, disable_tracing, record_contents)
+                        page_load_process = load_page(page, i, output_dir, start_measurements, device_name, disable_tracing, record_contents)
+                        page_load_process.communicate()
+                        signal.alarm(0) # Reset the alarm
+
                     iteration_path = os.path.join(output_dir, str(i))
                     common_module.stop_tcpdump_and_cpu_measurement(page.strip(), device_name, output_dir_run=iteration_path)
                     i += 1
@@ -58,8 +63,15 @@ def main(pages_file, num_repetitions, output_dir, start_measurements, device_nam
                     device_config_obj = get_device_config_obj(device_name)
                     # chrome_utils.close_all_tabs(device_config_obj)
                     initialize_browser(device_name)
+                    if args.defer_stop:
+                        page_load_process.terminate()
+                        # page_load_process.kill()
+                        # os.killpg(os.getpgid(page_load_process.pid), signal.SIGTERM)
+                        i += 1
+                        continue
                     pages.append(page)
                     break
+                phone_connection_utils.stop_chrome(device_config_obj)
                 sleep(PAUSE)
     # shutdown_browser(device)
 
@@ -75,26 +87,40 @@ def load_pages_with_measurement_disabled_but_tracing_enabled(pages, output_dir, 
         if page not in tried_counter:
             tried_counter[page] = 0
         tried_counter[page] += 1
+
+        # Make sure that we don't have any dangling instances of Chrome.
+        phone_connection_utils.stop_chrome(device_config_obj)
         while i < num_repetitions:
             try:
                 print 'Starting Chrome...'
                 phone_connection_utils.start_chrome(device_config_obj)
                 sleep(1)
                 signal.alarm(TIMEOUT) # Set alarm for TIMEOUT
-                load_page(page, i, output_dir, False, device_name, False, record_contents)
+                page_load_process = load_page(page, i, output_dir, False, device_name, False, record_contents)
+                page_load_process.communicate()
                 signal.alarm(0) # Reset the alarm
                 while common_module.check_previous_page_load(i, output_dir, page):
                     signal.alarm(TIMEOUT) # Set alarm for TIMEOUT
-                    load_page(page, i, output_dir, False, device_name, False, record_contents)
+                    page_load_process = load_page(page, i, output_dir, False, device_name, False, record_contents)
+                    page_load_process.communicate()
                     signal.alarm(0) # Reset the alarm
                 i += 1
                 print 'Stopping Chrome...'
                 phone_connection_utils.stop_chrome(device_config_obj)
             except PageLoadException as e:
                 print 'Timeout for {0}-th load. Append to end of queue...'.format(i)
+                if args.defer_stop:
+                    page_load_process.terminate()
+                    # page_load_process.kill()
+                    # os.killpg(os.getpgid(page_load_process.pid), signal.SIGTERM)
+                    sleep(2)
+                    i += 1
+                    continue
+
                 # Kill the browser and append a page.
                 chrome_utils.close_all_tabs(device_config_obj)
                 initialize_browser(device_name)
+
                 if tried_counter[page] <= TRY_LIMIT:
                     pages.append(page)
                 else:
@@ -129,23 +155,35 @@ def load_pages_with_measurement_and_tracing_disabled(pages, output_dir, num_repe
         while i < num_repetitions:
             try:
                 signal.alarm(TIMEOUT) # Set alarm for TIMEOUT
-                load_page(page, i, output_dir, False, device_name, True, record_contents, device_config_obj)
+                page_load_process = load_page(page, i, output_dir, False, device_name, True, record_contents, device_config_obj)
+                page_load_process.communicate()
                 signal.alarm(0) # Reset the alarm
+
                 while common_module.check_previous_page_load(i, output_dir, page):
                     signal.alarm(TIMEOUT) # Set alarm for TIMEOUT
-                    load_page(page, i, output_dir, False, device_name, True, record_contents, device_config_obj)
+                    page_load_process = load_page(page, i, output_dir, False, device_name, True, record_contents, device_config_obj)
+                    page_load_process.communicate()
                     signal.alarm(0) # Reset the alarm
+
                 i += 1
             except PageLoadException as e:
                 print 'Timeout for {0}-th load. Append to end of queue...'.format(i)
                 # Kill the browser and append a page.
                 chrome_utils.close_all_tabs(device_config_obj)
                 initialize_browser(device_name)
+                if args.defer_stop:
+                    page_load_process.terminate()
+                    # page_load_process.kill()
+                    # os.killpg(os.getpgid(page_load_process.pid), signal.SIGTERM)
+                    i += 1
+                    continue
+
                 if tried_counter[page] <= TRY_LIMIT:
                     pages.append(page)
                 else:
                     failed_pages.append(page)
                 break
+            phone_connection_utils.stop_chrome(device_config_obj)
             sleep(PAUSE)
     print_failed_pages(output_dir, failed_pages)
 
@@ -187,7 +225,8 @@ def load_pages_with_measurement_and_tracing_enabled(pages, output_dir, num_repet
                     common_module.start_cpu_measurements(device_name, output_filename, running_path=args.current_path)
 
                 signal.alarm(TIMEOUT) # Set alarm for TIMEOUT
-                load_page(page, i, output_dir, True, device_name, False, record_contents)
+                page_load_process = load_page(page, i, output_dir, True, device_name, False, record_contents)
+                page_load_process.communicate()
                 signal.alarm(0) # Reset the alarm
                 iteration_path = os.path.join(output_dir, str(i))
 
@@ -220,8 +259,10 @@ def load_pages_with_measurement_and_tracing_enabled(pages, output_dir, num_repet
                         common_module.start_cpu_measurements(device_name, output_filename, running_path=args.current_path)
 
                     signal.alarm(TIMEOUT) # Set alarm for TIMEOUT
-                    load_page(page, i, output_dir, True, device_name, False, record_contents)
+                    page_load_process = load_page(page, i, output_dir, True, device_name, False, record_contents)
+                    page_load_process.communicate()
                     signal.alarm(0) # Reset the alarm
+
                     iteration_path = os.path.join(output_dir, str(i - 1))
                     if args.start_measurements is not None and args.start_measurements == 'both':
                         common_module.stop_tcpdump_and_cpu_measurement(page.strip(), device_name, output_dir_run=iteration_path)
@@ -236,8 +277,16 @@ def load_pages_with_measurement_and_tracing_enabled(pages, output_dir, num_repet
                 device_config_obj = get_device_config_obj(device_name)
                 chrome_utils.close_all_tabs(device_config_obj)
                 initialize_browser(device_name)
+
+                if not args.defer_stop:
+                    page_load_process.terminate()
+                    # page_load_process.kill()
+                    # os.killpg(os.getpgid(page_load_process.pid), signal.SIGTERM)
+                    i += 1
+                    continue
                 pages.append(page)
                 break
+            phone_connection_utils.stop_chrome(device_config_obj)
             sleep(PAUSE)
 
 
@@ -287,12 +336,17 @@ def load_page(url, run_index, output_dir, start_measurements, device_name, disab
     if args.collect_tracing:
         cmd += ' --collect-tracing'
     if args.defer_stop:
-        cmd += ' --defer-stop'
+        # --defer-stop uses VirtualTime
+        # cmd += ' --defer-stop'
+        # --get-dependency-baseline does not kill the script and install a handler to handle timeouts.
+        cmd += ' --get-dependency-baseline'
     if args.get_dom:
         cmd += ' --get-dom'
     if args.take_heap_snapshot:
         cmd += ' --take-heap-snapshot'
-    subprocess.Popen(cmd, shell=True).wait()
+    if args.warm_cache and run_index > 0:
+        cmd += ' --preserve-cache'
+    return subprocess.Popen(cmd.split())
 
 def bring_chrome_to_foreground(device_name):
     device_config_obj = get_device_config_obj(device_name)
@@ -333,6 +387,7 @@ if __name__ == '__main__':
     parser.add_argument('--get-dom', default=False, action='store_true')
     parser.add_argument('--current-path', default='.')
     parser.add_argument('--take-heap-snapshot', default=False, action='store_true')
+    parser.add_argument('--warm-cache', default=False, action='store_true')
     args = parser.parse_args()
 
     # Initialize globals

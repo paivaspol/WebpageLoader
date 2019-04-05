@@ -1,4 +1,6 @@
-http://www.google.com/
+https://www.imgur.com/
+https://www.google.com/
+https://www.twitch.tv/
 # http://www.cnn.com/
 # http://www.yahoo.com/
 # http://apple-pi.eecs.umich.edu
