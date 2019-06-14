@@ -15,18 +15,21 @@ from ConfigParser import ConfigParser   # Parsing configuration file.
 from bs4 import BeautifulSoup # Beautify HTML
 from time import sleep
 from RDPMessageCollector.ChromeRDPWebsocketStreaming import ChromeRDPWebsocketStreaming # The websocket
-from RDPMessageCollector.ChromeRDPWithoutTracking import ChromeRDPWithoutTracing
 
 HTTP_PREFIX = 'http://'
 WWW_PREFIX = 'www.'
 OUTPUT_DIR = None
 PAGE_ID = None
 
-def main(device_configuration, url, reload_page):
+def main(device_configuration, url, reload_page, url_hash):
     '''
     The main workflow of the script.
     '''
-    output_directory = remove_and_create_output_directory_for_url(url)
+    if url_hash is None:
+        output_directory = remove_and_create_output_directory_for_url(url)
+    else:
+        output_directory = remove_and_create_output_directory_for_url(url_hash)
+
     if not is_desktop_device(device_configuration):
         cpu_chrome_running_on = phone_connection_utils.get_cpu_running_chrome(device_configuration)
         output_cpu_running_chrome(output_directory, cpu_chrome_running_on)
@@ -37,18 +40,23 @@ def main(device_configuration, url, reload_page):
     device_configuration['page_id'] = page_id
     emulating_device_params = device_configuration[config.EMULATING_DEVICE] if config.EMULATING_DEVICE in device_configuration else None
     network_params = device_configuration[config.NETWORK] if config.NETWORK in device_configuration else None
+    cpu_throttle_rate = device_configuration[config.CPU_THROTTLE_RATE] if config.CPU_THROTTLE_RATE in device_configuration else 1
 
     if args.get_dependency_baseline:
-        debugging_socket = ChromeRDPWebsocketStreaming(debugging_url, url, emulating_device_params, network_params, args.collect_console, args.collect_tracing, callback_on_received_event, None, args.preserve_cache, args.defer_stop, args.get_dom, args.take_heap_snapshot)
+        debugging_socket = ChromeRDPWebsocketStreaming(debugging_url, url,
+                emulating_device_params, network_params, cpu_throttle_rate, args.collect_console, args.collect_tracing, callback_on_received_event, None, args.preserve_cache, False, args.get_dom, args.take_heap_snapshot, url_hash)
         def timeout_handler(a, b):
+            print('get_chrome_message.py Timeout Handler called...')
             callback_on_page_done_streaming(debugging_socket)
             sys.exit(0)
 
         print 'Setting SIGTERM handler'
         signal.signal(signal.SIGTERM, timeout_handler)
     else:
-        debugging_socket = ChromeRDPWebsocketStreaming(debugging_url, url, emulating_device_params, network_params, args.collect_console, args.collect_tracing, callback_on_received_event, callback_on_page_done_streaming, args.preserve_cache, args.defer_stop, args.get_dom, args.take_heap_snapshot)
+        debugging_socket = ChromeRDPWebsocketStreaming(debugging_url, url,
+                emulating_device_params, network_params, cpu_throttle_rate, args.collect_console, args.collect_tracing, callback_on_received_event, callback_on_page_done_streaming, args.preserve_cache, False, args.get_dom, args.take_heap_snapshot, url_hash)
     debugging_socket.start()
+
 
 def get_debugging_url(device_configuration):
     '''
@@ -82,6 +90,7 @@ def remove_and_create_output_directory_for_url(url):
     os.mkdir(base_dir)
     return base_dir
 
+
 def ConstructOutputDir(url):
     base_dir = ''
     if OUTPUT_DIR is not None:
@@ -94,14 +103,15 @@ def ConstructOutputDir(url):
 
 
 def callback_on_received_event(debugging_socket, network_message, network_message_string):
-    base_dir = ConstructOutputDir(debugging_socket.url)
-    final_url = common_module.escape_page(debugging_socket.url)
+    final_url = debugging_socket.url_hash if debugging_socket.url_hash is not None else common_module.escape_page(debugging_socket.url) 
+    base_dir = ConstructOutputDir(final_url)
     if 'method' in network_message and network_message['method'].startswith('Network'):
         network_filename = os.path.join(base_dir, 'network_' + final_url)
         with open(network_filename, 'ab') as output_file:
             output_file.write('{0}\n'.format(network_message_string))
 
-    elif 'method' in network_message and network_message['method'].startswith('Log'):
+    elif 'method' in network_message and \
+            (network_message['method'].startswith('Log') or network_message['method'].startswith('Runtime')):
         network_filename = os.path.join(base_dir, 'console_' + final_url)
         with open(network_filename, 'ab') as output_file:
             output_file.write('{0}\n'.format(network_message_string))
@@ -124,8 +134,8 @@ def callback_on_page_done_streaming(debugging_socket):
     print 'Closed debugging socket connection'
 
     sleep(1)
-    final_url = common_module.escape_page(debugging_socket.url)
-    base_dir = ConstructOutputDir(debugging_socket.url)
+    final_url = debugging_socket.url_hash if debugging_socket.url_hash is not None else common_module.escape_page(debugging_socket.url) 
+    base_dir = ConstructOutputDir(final_url)
     new_debugging_websocket = websocket.create_connection(debugging_socket.debugging_url)
 
     # Get the start and end time of the execution
@@ -179,6 +189,12 @@ def write_page_start_end_time(escaped_url, base_dir, start_time, end_time, dom_c
         output_file.write('{0} {1} {2} {3} {4} {5}\n'.format(escaped_url, start_time, end_time, original_request_ts, load_event_ts, dom_content_loaded))
 
 
+def get_page_hashes(page_hash_mapping_filename):
+    '''Returns a dictionary mapping from the page hash to the URL.'''
+    with open(page_hash_mapping_filename, 'r') as input_file:
+        return json.load(input_file)
+
+
 if __name__ == '__main__':
     argparser = ArgumentParser()
     argparser.add_argument('config_filename')
@@ -192,9 +208,9 @@ if __name__ == '__main__':
     argparser.add_argument('--get-dependency-baseline', default=False, action='store_true')
     argparser.add_argument('--collect-tracing', default=False, action='store_true')
     argparser.add_argument('--preserve-cache', default=False, action='store_true')
-    argparser.add_argument('--defer-stop', default=False, action='store_true')
     argparser.add_argument('--get-dom', default=False, action='store_true')
     argparser.add_argument('--take-heap-snapshot', default=False, action='store_true')
+    argparser.add_argument('--get-page-from-hash', default=None)
     args = argparser.parse_args()
 
     # Setup the config filename
@@ -204,7 +220,17 @@ if __name__ == '__main__':
 
     # Get the device configuration.
     device_config = config.get_device_configuration(config_reader, args.device)
+
     url = args.url
+    url_hash = None
     if url.startswith('"'):
         url = url[1:len(url) - 1]
-    main(device_config, url, args.reload_page)
+
+    if args.get_page_from_hash is not None:
+        # This assumes that the value passed through URL is the hash of the URL.
+        page_hashes = get_page_hashes(args.get_page_from_hash)
+        print(page_hashes)
+        url_hash = url
+        url = page_hashes[url]
+
+    main(device_config, url, args.reload_page, url_hash)

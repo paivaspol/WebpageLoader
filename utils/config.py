@@ -132,6 +132,8 @@ USER_AGENT = 'user_agent'
 CHROME_BINARY = 'chrome_bin'
 EMULATING_DEVICE = 'emulating_device'
 NETWORK = 'network'
+ADDITIONAL_ARGS = 'additional_args'
+CPU_THROTTLE_RATE = 'cpu_throttle_rate'
 
 # Hardcoded values for the Chrome instances.
 ANDROID_CHROME_INSTANCE = 'com.android.chrome/com.google.android.apps.chrome.Main'
@@ -172,6 +174,17 @@ def get_device_configuration(config_reader, device):
         return config_dict
 
 
+    def extract_list_config(device_config, config_reader, section, key):
+        '''
+        Extracts the values and returns a list corresponding to the values.
+        '''
+        configs = config_reader.get(section, key).split('$')
+        result = []
+        for config in configs:
+            result.append(config)
+        return result
+
+
     device_config = dict()
     device_config[IP] = config_reader.get(device, IP)
     device_type = config_reader.get(device, DEVICE_TYPE)
@@ -193,6 +206,8 @@ def get_device_configuration(config_reader, device):
         populate_if_exists(device_config, config_reader, device, PAC_FILE_PATH)
         populate_if_exists(device_config, config_reader, device, IGNORE_CERTIFICATE_ERRORS)
         populate_if_exists(device_config, config_reader, device, EXTENSION)
+        populate_if_exists(device_config, config_reader, device,
+                CPU_THROTTLE_RATE)
         device_config[USER_DATA_DIR] = get_config(config_reader, device, USER_DATA_DIR, 'random')
         device_config[CHROME_RUNNING_MODE] = get_config(config_reader, device, CHROME_RUNNING_MODE, 'headless')
 
@@ -202,5 +217,7 @@ def get_device_configuration(config_reader, device):
             device_config[EMULATING_DEVICE].update(screen_config_dict)
         if config_reader.has_option(device, NETWORK):
             device_config[NETWORK] = extract_kv_config(device_config, config_reader, device, NETWORK)
+        if config_reader.has_option(device, ADDITIONAL_ARGS):
+            device_config[ADDITIONAL_ARGS] = extract_list_config(device_config, config_reader, device, ADDITIONAL_ARGS)
 
     return device_config

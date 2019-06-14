@@ -101,6 +101,7 @@ def clear_cache(debug_connection):
     '''
     clear_cache = { "id": 4, "method": "Network.clearBrowserCache" }
     debug_connection.send(json.dumps(clear_cache))
+    debug_connection.send(json.dumps({ 'id': 8889, 'method': 'Network.clearBrowserCookies' }))
     # result = json.loads(debug_connection.recv())
     # print result
     print 'Cleared browser cache'

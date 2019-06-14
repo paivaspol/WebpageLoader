@@ -40,7 +40,8 @@ def start_chrome(device_configuration):
             # cmd = [ 'xvfb-run',  '--server-args="-screen 0, 1920x1080x16"', 'dbus-launch', '--exit-with-session', device_configuration[config.CHROME_INSTANCE] ]
             cmd = [ 'xvfb-run',  '--server-args="-screen 0, 1024x768x16"', 'dbus-launch', '--exit-with-session', device_configuration[config.CHROME_INSTANCE] ]
 
-        args = '--remote-debugging-port={0} --disable-logging --enable-devtools-experiments --no-first-run --disable-features=IsolateOrigins,site-per-process'.format(device_configuration[config.CHROME_DESKTOP_DEBUG_PORT])
+        args = '--remote-debugging-port={0} --disable-logging --enable-devtools-experiments --allow-running-insecure-content --no-first-run --disable-features=IsolateOrigins,site-per-process'.format(device_configuration[config.CHROME_DESKTOP_DEBUG_PORT])
+        # args = '--remote-debugging-port={0} --no-first-run'.format(device_configuration[config.CHROME_DESKTOP_DEBUG_PORT])
 
         if device_configuration[config.USER_DATA_DIR] != 'random' and \
                 device_configuration[config.USER_DATA_DIR] != '[DEFAULT]':
@@ -65,6 +66,10 @@ def start_chrome(device_configuration):
 
         if device_configuration[config.CHROME_RUNNING_MODE] == 'headless':
             args += ' --headless'
+
+        if config.ADDITIONAL_ARGS in device_configuration:
+            more_args = ' '.join(device_configuration[config.ADDITIONAL_ARGS])
+            args += ' ' + more_args
 
         cmd.extend(args.split(' '))
         print ' '.join(cmd)
