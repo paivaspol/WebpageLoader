@@ -52,6 +52,7 @@ class ChromeRDPWebsocketStreaming(object):
         self.domContentEventFiredMs = None
         self.loadEventFiredMs = None
         self.mainHtmlRequestId = None
+        self.page_load_stabilized = False
         self.tracingCollectionCompleted = False
         self.start_page = False
         self.get_main_html = get_main_html
@@ -98,8 +99,6 @@ class ChromeRDPWebsocketStreaming(object):
         Handle each message.
         '''
         message_obj = json.loads(message)
-        if 'id' in message_obj and message_obj['id'] == 1060:
-            print(message_obj)
 
         if not self.navigation_started:
             return
@@ -156,19 +155,15 @@ class ChromeRDPWebsocketStreaming(object):
                 self.domContentEventFiredMs = message_obj[PARAMS][TIMESTAMP] * 1000
             elif message_obj[
                     METHOD] == 'Page.loadEventFired' and self.start_page:
+                # Page load converges when we are not capturing beyond onload.
                 print('Onload fired')
                 self.loadEventFiredMs = message_obj[PARAMS][TIMESTAMP] * 1000
 
                 if self.capture_pass_onload:
                     print('Setting up timer after onload fired')
                     self.setup_timer()
-
-                if self.collect_tracing and self.tracing_started:
-                    print('Stopping trace collection after onload')
-                    self.stop_trace_collection(self.ws)
-
-                if self.should_take_heap_snapshot:
-                    self.take_heap_snapshot(self.ws)
+                else:
+                    self.handle_page_stabilized()
 
             elif message_obj[METHOD] == 'Page.javascriptDialogOpening':
                 if message_obj[PARAMS]['type'] == 'alert' or \
@@ -180,6 +175,7 @@ class ChromeRDPWebsocketStreaming(object):
 
         elif message_obj[METHOD].startswith('Tracing'):
             if message_obj[METHOD] == 'Tracing.tracingComplete':
+                print('Done collecting tracing logs')
                 self.tracingCollectionCompleted = True
 
         elif message_obj[METHOD].startswith('HeapProfiler'):
@@ -196,14 +192,7 @@ class ChromeRDPWebsocketStreaming(object):
                     parse_succeeded = False
                 self.heap_snapshot_done = parse_succeeded
 
-        if self.capture_pass_onload:
-            # We want to keep collecting the logs.
-            return
-
-
-        if (self.originalRequestMs is not None and \
-            self.domContentEventFiredMs is not None and \
-            self.loadEventFiredMs is not None and \
+        if (self.page_load_stabilized and \
             (not self.collect_tracing or (self.collect_tracing and self.tracingCollectionCompleted)) and \
             (not self.get_main_html or \
             self.get_main_html and not self.waiting_for_main_html) and \
@@ -278,7 +267,22 @@ class ChromeRDPWebsocketStreaming(object):
 
     def timeout_handler(self):
         print('Timed out: no activity')
-        self.page_load_converges()
+        self.handle_page_stabilized()
+        # self.page_load_converges()
+
+    def handle_page_stabilized(self):
+        '''Handles when the page has stabilized.
+            1) Stops the trace collection.
+            2) Takes the heap snapshot.
+        '''
+        self.page_load_stabilized = True
+        if self.collect_tracing and self.tracing_started:
+            print('Stopping trace collection after page stabilized')
+            self.stop_trace_collection(self.ws)
+
+        if self.should_take_heap_snapshot:
+            self.take_heap_snapshot(self.ws)
+
 
     def setup_timer(self):
         '''Initializes and starts the timer.'''
