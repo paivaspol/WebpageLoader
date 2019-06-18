@@ -1,8 +1,12 @@
+import datetime
 import os
 import json
 import websocket
 import signal
+import time
+import logging
 
+from apscheduler.schedulers.background import BackgroundScheduler
 from time import sleep
 
 from utils import config, navigation_utils
@@ -14,6 +18,7 @@ TIMESTAMP = 'timestamp'
 
 WAIT = 1
 PAGE_STABLE_THRESHOLD = 5000  # times out at 5s when there isn't any requests.
+EVENT_NAME = 'page_load_stable'
 
 HTTP_PREFIX = 'http://'
 HTTPS_PREFIX = 'https://'
@@ -62,6 +67,10 @@ class ChromeRDPWebsocketStreaming(object):
         # If this is true, it will set a timer that will fire whenever
         # there isn't any requests for more than the defined THRESHOLD.
         self.capture_pass_onload = capture_pass_onload
+        self.event = None
+        self.scheduler = BackgroundScheduler()
+        self.scheduler.start() # Start the scheduler.
+        logging.basicConfig()
 
         self.url = page_url  # The URL to navigate to.
         self.collect_console = collect_console
@@ -149,6 +158,11 @@ class ChromeRDPWebsocketStreaming(object):
                     METHOD] == 'Page.loadEventFired' and self.start_page:
                 print('Onload fired')
                 self.loadEventFiredMs = message_obj[PARAMS][TIMESTAMP] * 1000
+
+                if self.capture_pass_onload:
+                    print('Setting up timer after onload fired')
+                    self.setup_timer()
+
                 if self.collect_tracing and self.tracing_started:
                     print('Stopping trace collection after onload')
                     self.stop_trace_collection(self.ws)
@@ -182,7 +196,7 @@ class ChromeRDPWebsocketStreaming(object):
                     parse_succeeded = False
                 self.heap_snapshot_done = parse_succeeded
 
-        if self.callback_page_done is None:
+        if self.capture_pass_onload:
             # We want to keep collecting the logs.
             return
 
@@ -197,10 +211,6 @@ class ChromeRDPWebsocketStreaming(object):
             (not self.should_take_heap_snapshot or (self.should_take_heap_snapshot and self.heap_snapshot_done)):
             print('Converges in onMessage...')
             self.page_load_converges()
-
-    def handle_timeout(self):
-        print('No activity for 5s...')
-        self.page_load_converges()
 
     def page_load_converges(self):
         '''Calls when page load converges and perform necessary cleanup.'''
@@ -257,9 +267,6 @@ class ChromeRDPWebsocketStreaming(object):
         if self.collect_tracing:
             self.enable_trace_collection(self.ws)
 
-        if self.capture_pass_onload:
-            self.setup_timer()
-
         self.enable_heap_profiler(self.ws)
         print 'navigating to url: ' + str(self.url)
         navigation_utils.navigate_to_page(self.ws, self.url)
@@ -269,17 +276,26 @@ class ChromeRDPWebsocketStreaming(object):
         self.ws.close()
         print 'Connection closed'
 
+    def timeout_handler(self):
+        print('Timed out: no activity')
+        self.page_load_converges()
+
     def setup_timer(self):
         '''Initializes and starts the timer.'''
-        print('Initializing timer...')
-        signal.signal(signal.SIGINT, self.handle_timeout)
-        signal.alarm(PAGE_STABLE_THRESHOLD)
+        # self.event = self.scheduler.enter(PAGE_STABLE_THRESHOLD, 1,
+        #         self.timeout_handler, ())
+        time_to_run = datetime.datetime.now() + datetime.timedelta(milliseconds=PAGE_STABLE_THRESHOLD)
+        self.event = self.scheduler.add_job(self.timeout_handler, trigger='date',
+                run_date=time_to_run, id=EVENT_NAME)
 
     def reset_timer(self):
         '''Resets the timer.'''
-        print('Resetting timer...')
-        signal.alarm(0)
-        signal.alarm(PAGE_STABLE_THRESHOLD)
+        if self.scheduler and self.event and self.scheduler.get_job(EVENT_NAME) is not None:
+            # self.scheduler.cancel(self.event)
+            # self.setup_timer()
+            time_to_run = datetime.datetime.now() + datetime.timedelta(milliseconds=PAGE_STABLE_THRESHOLD)
+            self.event = self.scheduler.reschedule_job(EVENT_NAME, trigger='date',
+                    run_date=time_to_run)
 
     def clear_cache(self, debug_connection):
         navigation_utils.clear_cache(debug_connection)

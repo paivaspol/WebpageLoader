@@ -44,7 +44,10 @@ def main(device_configuration, url, reload_page, url_hash):
 
     if args.get_dependency_baseline:
         debugging_socket = ChromeRDPWebsocketStreaming(debugging_url, url,
-                emulating_device_params, network_params, cpu_throttle_rate, args.collect_console, args.collect_tracing, callback_on_received_event, None, args.preserve_cache, False, args.get_dom, args.take_heap_snapshot, url_hash)
+                emulating_device_params, network_params, cpu_throttle_rate,
+                args.collect_console, args.collect_tracing,
+                callback_on_received_event, callback_on_page_done_streaming, args.preserve_cache,
+                args.get_dependency_baseline, args.get_dom, args.take_heap_snapshot, url_hash)
         def timeout_handler(a, b):
             print('get_chrome_message.py Timeout Handler called...')
             callback_on_page_done_streaming(debugging_socket)
@@ -54,7 +57,10 @@ def main(device_configuration, url, reload_page, url_hash):
         signal.signal(signal.SIGTERM, timeout_handler)
     else:
         debugging_socket = ChromeRDPWebsocketStreaming(debugging_url, url,
-                emulating_device_params, network_params, cpu_throttle_rate, args.collect_console, args.collect_tracing, callback_on_received_event, callback_on_page_done_streaming, args.preserve_cache, False, args.get_dom, args.take_heap_snapshot, url_hash)
+                emulating_device_params, network_params, cpu_throttle_rate,
+                args.collect_console, args.collect_tracing,
+                callback_on_received_event, callback_on_page_done_streaming,
+                args.preserve_cache, args.get_dependency_baseline, args.get_dom, args.take_heap_snapshot, url_hash)
     debugging_socket.start()
 
 
