@@ -81,6 +81,7 @@ def load_pages_with_measurement_disabled_but_tracing_enabled(pages, output_dir, 
                     continue
 
                 # Kill the browser and append a page.
+                phone_connection_utils.stop_chrome(device_config_obj)
                 chrome_utils.close_all_tabs(device_config_obj)
                 initialize_browser(device_name)
 
