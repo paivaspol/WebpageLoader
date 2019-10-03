@@ -57,23 +57,25 @@ def load_pages_with_measurement_disabled_but_tracing_enabled(pages, output_dir, 
                 print 'Starting Chrome...'
                 phone_connection_utils.start_chrome(device_config_obj)
                 sleep(1)
-                signal.alarm(TIMEOUT) # Set alarm for TIMEOUT
+                signal.alarm(args.timeout_seconds) # Set alarm for TIMEOUT
                 final_page = url_to_hash[page] if args.use_page_hash else page
                 page_load_process = load_page(final_page, i, output_dir, False, device_name, False, record_contents)
                 page_load_process.communicate()
                 signal.alarm(0) # Reset the alarm
                 while common_module.check_previous_page_load(i, output_dir, page):
-                    signal.alarm(TIMEOUT) # Set alarm for TIMEOUT
+                    signal.alarm(args.timeout_seconds) # Set alarm for TIMEOUT
                     page_load_process = load_page(final_page, i, output_dir, False, device_name, False, record_contents)
                     page_load_process.communicate()
                     signal.alarm(0) # Reset the alarm
                 i += 1
                 print 'Stopping Chrome...'
+                # chrome_utils.close_all_tabs(device_config_obj)
                 phone_connection_utils.stop_chrome(device_config_obj)
             except PageLoadException as e:
                 print 'Timeout for {0}-th load. Append to end of queue...'.format(i)
                 if args.defer_stop:
                     page_load_process.terminate()
+                    phone_connection_utils.stop_chrome(device_config_obj)
                     # page_load_process.kill()
                     # os.killpg(os.getpgid(page_load_process.pid), signal.SIGTERM)
                     sleep(2)
@@ -81,8 +83,8 @@ def load_pages_with_measurement_disabled_but_tracing_enabled(pages, output_dir, 
                     continue
 
                 # Kill the browser and append a page.
+                # chrome_utils.close_all_tabs(device_config_obj)
                 phone_connection_utils.stop_chrome(device_config_obj)
-                chrome_utils.close_all_tabs(device_config_obj)
                 initialize_browser(device_name)
 
                 if tried_counter[page] <= TRY_LIMIT:
@@ -156,7 +158,7 @@ def load_page(url, run_index, output_dir, start_measurements, device_name, disab
         cmd += ' --get-dom'
     if args.take_heap_snapshot:
         cmd += ' --take-heap-snapshot'
-    if args.warm_cache and run_index > 0:
+    if args.preserve_cache or (args.warm_cache and run_index > 0):
         cmd += ' --preserve-cache'
     if args.use_page_hash:
         cmd += ' --get-page-from-hash={0}'.format(os.path.join(args.use_page_hash, 'hash_to_url'))
@@ -201,9 +203,7 @@ if __name__ == '__main__':
     parser.add_argument('pages_file')
     parser.add_argument('num_repetitions', type=int)
     parser.add_argument('output_dir')
-    # parser.add_argument('--start-measurements', default=None, choices=[ 'tcpdump', 'cpu', 'both' ])
     parser.add_argument('--use-device', default=DEFAULT_DEVICE)
-    # parser.add_argument('--disable-tracing', default=False, action='store_true')
     parser.add_argument('--record-content', default=False, action='store_true')
     parser.add_argument('--collect-console', default=False, action='store_true')
     parser.add_argument('--collect-tracing', default=False, action='store_true')
@@ -211,8 +211,12 @@ if __name__ == '__main__':
     parser.add_argument('--get-dom', default=False, action='store_true')
     parser.add_argument('--current-path', default='.')
     parser.add_argument('--take-heap-snapshot', default=False, action='store_true')
-    parser.add_argument('--warm-cache', default=False, action='store_true')
+    parser.add_argument('--warm-cache', default=False, action='store_true',
+            help='Add another iteration to warm the cache')
+    parser.add_argument('--preserve-cache', default=False, action='store_true',
+            help='If set, the script does not clear the browser cache when performing the load')
     parser.add_argument('--use-page-hash', default=None)
+    parser.add_argument('--timeout-seconds', default=TIMEOUT, type=int)
     args = parser.parse_args()
 
     # Initialize globals
