@@ -54,7 +54,7 @@ def parse_pages_to_ignore(pages_to_ignore_filename):
     return pages
 
 def parse_page_start_end_time(filename):
-    with open(filename, 'rb') as input_file:
+    with open(filename, 'r') as input_file:
         line = input_file.readline().strip().split()
         web_perf_nav_start = float(line[1])
         web_perf_load_event = float(line[2])
@@ -71,9 +71,12 @@ DEVICES = {
         'Nexus_6_2_chromium': '/device_config/nexus6_2_chromium.cfg',
         'Nexus_5': '/device_config/nexus5.cfg',
         'pixel2': '/device_config/pixel2.cfg',
+        'samsung_s8': '/device_config/samsung_s8.cfg',
 
         # Desktop devices
         'ubuntu': '/device_config/ubuntu.cfg',
+        'ubuntu_emulate_nexus5': '/device_config/ubuntu_emulate_nexus5.cfg',
+        'ubuntu_emulate_nexus5_second_instance': '/device_config/ubuntu_emulate_nexus5_second_instance.cfg',
         'ubuntu_with_cookies': '/device_config/ubuntu_with_cookies.cfg',
         'mac': '/device_config/mac.cfg',
 }
@@ -149,24 +152,28 @@ def get_start_end_time(current_run_index, base_output_dir, page_url):
         end_time = int(cur_line[2])
     return start_time, end_time
 
+# def get_pages(pages_file):
+#     pages = []
+#     with open(pages_file, 'rb') as input_file:
+#         for raw_line in input_file:
+#             line = raw_line.strip()
+#             if line.startswith('#') or len(line) == 0:
+#                 continue
+#             line = raw_line.strip().split()
+#             pages.append(line[len(line) - 1])
+#     return pages
+
+# def get_pages_with_redirected_url(pages_file):
 def get_pages(pages_file):
     pages = []
     with open(pages_file, 'rb') as input_file:
         for raw_line in input_file:
-            line = raw_line.strip()
-            if line.startswith('#') or len(line) == 0:
-                continue
             line = raw_line.strip().split()
-            pages.append(line[len(line) - 1])
-    return pages
-
-def get_pages_with_redirected_url(pages_file):
-    pages = []
-    with open(pages_file, 'rb') as input_file:
-        for raw_line in input_file:
-            if not raw_line.startswith('#'):
-                line = raw_line.strip().split()
-                pages.append(line)
+            if raw_line.startswith('#') or len(line) == 0 or len(line) > 2:
+                # We assume that the pages file only have 2 tokens:
+                # orignal_url redirection_url.
+                continue
+            pages.append(line)
     return pages
 
 current_timer = None

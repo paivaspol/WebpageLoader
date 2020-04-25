@@ -13,12 +13,12 @@ def close_all_tabs(device_configuration):
         response = requests.get(url)
         response_json = json.loads(response.text)
         for i in range(0, len(response_json) - 1):
-            response = response_json[i]
-            page_id = response['id']
+            page_obj = response_json[i]
+            page_id = page_obj['id']
             base_url = 'http://localhost:{0}/json/close/{1}'
             url = base_url.format(get_debugging_port(device_configuration), page_id)
             response = requests.get(url)
-        print 'Cleared all tabs'
+        print('Closed all tabs')
     except Exception as e:
         print 'Got exception: {0} but absorbing it...'.format(e)
 

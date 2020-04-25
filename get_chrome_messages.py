@@ -26,7 +26,10 @@ def main(device_configuration, url, reload_page, url_hash):
     The main workflow of the script.
     '''
     if url_hash is None:
-        output_directory = remove_and_create_output_directory_for_url(url)
+        output_dir_url = url
+        if args.base_url is not None:
+            output_dir_url = args.base_url.replace('"', '')
+        output_directory = remove_and_create_output_directory_for_url(output_dir_url)
     else:
         output_directory = remove_and_create_output_directory_for_url(url_hash)
 
@@ -109,7 +112,7 @@ def ConstructOutputDir(url):
 
 
 def callback_on_received_event(debugging_socket, network_message, network_message_string):
-    final_url = debugging_socket.url_hash if debugging_socket.url_hash is not None else common_module.escape_page(debugging_socket.url) 
+    final_url = GetFinalUrl(debugging_socket)
     base_dir = ConstructOutputDir(final_url)
     if 'method' in network_message and network_message['method'].startswith('Network'):
         network_filename = os.path.join(base_dir, 'network_' + final_url)
@@ -131,6 +134,15 @@ def callback_on_received_event(debugging_socket, network_message, network_messag
             output_file.write('{0}\n'.format(network_message_string))
 
 
+def GetFinalUrl(debugging_socket):
+    final_url = common_module.escape_page(debugging_socket.url)
+    if debugging_socket.url_hash is not None:
+        final_url = debugging_socket.url_hash
+    elif args.base_url is not None:
+        final_url = common_module.escape_page(args.base_url.replace('"', ''))
+    return final_url
+
+
 def callback_on_page_done_streaming(debugging_socket):
     try:
         debugging_socket.close_connection()
@@ -140,23 +152,22 @@ def callback_on_page_done_streaming(debugging_socket):
     print 'Closed debugging socket connection'
 
     sleep(1)
-    final_url = debugging_socket.url_hash if debugging_socket.url_hash is not None else common_module.escape_page(debugging_socket.url) 
+    final_url = GetFinalUrl(debugging_socket) 
     base_dir = ConstructOutputDir(final_url)
     new_debugging_websocket = websocket.create_connection(debugging_socket.debugging_url)
 
     # Get the start and end time of the execution
     start_time, end_time, dom_content_loaded = navigation_utils.get_start_end_time_with_socket(new_debugging_websocket)
     # print 'output dir: ' + base_dir
-    print 'Load time: ' + str((start_time, end_time)) + ' ' + str((end_time - start_time))
+    print 'Load time ({0}): {1}'.format(final_url, str((start_time, end_time)) + ' ' + str((end_time - start_time)))
     write_page_start_end_time(final_url, base_dir, start_time, end_time, dom_content_loaded, -1, -1)
 
-    if args.record_content:
+    if args.get_dom:
         body = navigation_utils.get_modified_html(new_debugging_websocket)
-        with open(os.path.join(base_dir, 'onload_root_html'), 'wb') as output_file:
+        with open(os.path.join(base_dir, 'onload_root_html'), 'w') as output_file:
             output_file.write(body)
 
-    if args.get_dom:
-        with open(os.path.join(base_dir, 'unmodified_root_html'), 'wb') as output_file:
+        with open(os.path.join(base_dir, 'unmodified_root_html'), 'w') as output_file:
             output_file.write(str(debugging_socket.unmodified_html))
 
         dom = navigation_utils.get_dom_tree(new_debugging_websocket)
@@ -217,6 +228,7 @@ if __name__ == '__main__':
     argparser.add_argument('--get-dom', default=False, action='store_true')
     argparser.add_argument('--take-heap-snapshot', default=False, action='store_true')
     argparser.add_argument('--get-page-from-hash', default=None)
+    argparser.add_argument('--base-url', default= None)
     args = argparser.parse_args()
 
     # Setup the config filename

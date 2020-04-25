@@ -99,6 +99,8 @@ class ChromeRDPWebsocketStreaming(object):
         Handle each message.
         '''
         message_obj = json.loads(message)
+        if 'id' in message_obj and message_obj['id'] == 1050:
+            print(message)
 
         if not self.navigation_started:
             return
@@ -446,14 +448,16 @@ class ChromeRDPWebsocketStreaming(object):
         '''
         Enables the tracing collection.
         '''
+        categories = ['-*', 'disabled-by-default-lighthouse', 'v8', 'v8.execute', 'blink.user_timing', 'blink.console', 'devtools.timeline', 'disabled-by-default-devtools.timeline', 'disabled-by-default-devtools.timeline.stack', 'disabled-by-default-devtools.screenshot']
+        # categories = ['-*', 'netlog', 'toplevel', 'disabled-by-default-lighthouse', 'v8.execute', 'blink', 'blink.user_timing', 'blink.console', 'devtools.timeline', 'disabled-by-default-devtools.timeline', 'disabled-by-default-devtools.timeline.stack', 'disabled-by-default-devtools.screenshot', 'disabled-by-default-devtools.timeline.frame', 'devtools.timeline.frame', 'disabled-by-default-v8.cpu_profile',  'disabled-by-default-blink.feature_usage' ]
+        # categories = [ "-*", "toplevel", "blink.console", "disabled-by-default-devtools.timeline", "devtools.timeline", "disabled-by-default-devtools.timeline.frame", "devtools.timeline.frame","disabled-by-default-devtools.timeline.stack", "disabled-by-default-v8.cpu_profile",  "disabled-by-default-blink.feature_usage", "blink.user_timing", "v8.execute", "netlog" ]
+        print 'Trace Categories enabled: {0}'.format(','.join(categories))
         enable_trace_collection = {
             "id": 9,
             'method': 'Tracing.start',
             'params': {
-                'categories':
-                'blink, devtools.timeline, disabled-by-default-devtools.timeline, disabled-by-default-devtools.screenshot',
-                "options":
-                "sampling-frequency=10000"
+                'categories': ','.join(categories),
+                "options": "sampling-frequency=10000"
             }
         }
         debug_connection.send(json.dumps(enable_trace_collection))
@@ -510,6 +514,7 @@ class ChromeRDPWebsocketStreaming(object):
                 'params': { k: int(v) for k, v in network_parameters.items() } \
         }
         shape_network['params']['offline'] = False
+        print('Shaping network: {0}'.format(shape_network))
         debug_connection.send(json.dumps(shape_network))
 
     def throttle_cpu(self, debug_connection, throttle_rate):

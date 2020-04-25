@@ -43,7 +43,8 @@ def load_pages_with_measurement_disabled_but_tracing_enabled(pages, output_dir, 
     failed_pages = []
     num_pages = len(pages)
     while len(pages) > 0:
-        page = pages.pop(0)
+        page, page_redirection_url = pages.pop(0)
+        page_pair = (page, page_redirection_url)
         print 'page: ' + page
         i = 0
         if page not in tried_counter:
@@ -58,13 +59,17 @@ def load_pages_with_measurement_disabled_but_tracing_enabled(pages, output_dir, 
                 phone_connection_utils.start_chrome(device_config_obj)
                 sleep(1)
                 signal.alarm(args.timeout_seconds) # Set alarm for TIMEOUT
-                final_page = url_to_hash[page] if args.use_page_hash else page
-                page_load_process = load_page(final_page, i, output_dir, False, device_name, False, record_contents)
+                final_page = page
+                if args.use_page_hash:
+                    final_page = url_to_hash[page] 
+                elif args.use_redirection_url:
+                    final_page = page_redirection_url
+                page_load_process = load_page(final_page, i, output_dir, False, device_name, False, record_contents, original_url=page)
                 page_load_process.communicate()
                 signal.alarm(0) # Reset the alarm
                 while common_module.check_previous_page_load(i, output_dir, page):
                     signal.alarm(args.timeout_seconds) # Set alarm for TIMEOUT
-                    page_load_process = load_page(final_page, i, output_dir, False, device_name, False, record_contents)
+                    page_load_process = load_page(final_page, i, output_dir, False, device_name, False, record_contents, original_url=page)
                     page_load_process.communicate()
                     signal.alarm(0) # Reset the alarm
                 i += 1
@@ -85,10 +90,10 @@ def load_pages_with_measurement_disabled_but_tracing_enabled(pages, output_dir, 
                 # Kill the browser and append a page.
                 # chrome_utils.close_all_tabs(device_config_obj)
                 phone_connection_utils.stop_chrome(device_config_obj)
-                initialize_browser(device_name)
+                # initialize_browser(device_name)
 
                 if tried_counter[page] <= TRY_LIMIT:
-                    pages.append(page)
+                    pages.append(page_pair)
                 else:
                     failed_pages.append(page)
                 break
@@ -129,7 +134,7 @@ def shutdown_browser(device_name):
     print 'Stopping Chrome...'
     phone_connection_utils.stop_chrome(device_config_obj)
 
-def load_page(url, run_index, output_dir, start_measurements, device_name, disable_tracing, record_contents=False, device_config_obj=None):
+def load_page(url, run_index, output_dir, start_measurements, device_name, disable_tracing, record_contents=False, device_config_obj=None, original_url=''):
     # Create necessary directories
     base_output_dir = output_dir
     if not os.path.exists(base_output_dir):
@@ -162,6 +167,8 @@ def load_page(url, run_index, output_dir, start_measurements, device_name, disab
         cmd += ' --preserve-cache'
     if args.use_page_hash:
         cmd += ' --get-page-from-hash={0}'.format(os.path.join(args.use_page_hash, 'hash_to_url'))
+    if args.use_redirection_url:
+        cmd += ' --base-url="' + original_url + '"'
     print(cmd)
     return subprocess.Popen(cmd.split())
 
@@ -217,6 +224,7 @@ if __name__ == '__main__':
             help='If set, the script does not clear the browser cache when performing the load')
     parser.add_argument('--use-page-hash', default=None)
     parser.add_argument('--timeout-seconds', default=TIMEOUT, type=int)
+    parser.add_argument('--use-redirection-url', default=False, action='store_true')
     args = parser.parse_args()
 
     # Initialize globals

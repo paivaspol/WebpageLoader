@@ -17,6 +17,32 @@ global devnull
 global random_token
 random_token = None
 
+CHROME_FLAGS = [
+    '--disable-background-networking',
+    '--no-default-browser-check',
+    '--no-first-run',
+    '--new-window',
+    '--disable-infobars',
+    '--disable-translate',
+    '--disable-notifications',
+    '--disable-desktop-notifications',
+    '--disable-save-password-bubble',
+    '--allow-running-insecure-content',
+    '--disable-component-update',
+    '--disable-background-downloads',
+    '--disable-add-to-shelf',
+    '--disable-client-side-phishing-detection',
+    '--disable-datasaver-prompt',
+    '--disable-default-apps',
+    '--disable-device-discovery-notifications',
+    '--disable-domain-reliability',
+    '--safebrowsing-disable-auto-update',
+    '--disable-background-timer-throttling',
+    '--disable-browser-side-navigation',
+    '--net-log-capture-mode=IncludeCookiesAndCredentials',
+    '--load-media-router-component-extension=0'
+]
+
 def start_chrome(device_configuration):
     '''
     Setup and run chrome on Android.
@@ -40,26 +66,17 @@ def start_chrome(device_configuration):
             # cmd = [ 'xvfb-run',  '--server-args="-screen 0, 1920x1080x16"', 'dbus-launch', '--exit-with-session', device_configuration[config.CHROME_INSTANCE] ]
             cmd = [ 'xvfb-run',  '--server-args="-screen 0, 1024x768x16"', 'dbus-launch', '--exit-with-session', device_configuration[config.CHROME_INSTANCE] ]
 
-        args = '--remote-debugging-port={0} --disable-logging --enable-devtools-experiments --allow-running-insecure-content --no-first-run --disable-features=IsolateOrigins,site-per-process'.format(device_configuration[config.CHROME_DESKTOP_DEBUG_PORT])
+        # args = '--remote-debugging-port={0} --disable-logging --enable-devtools-experiments --disable-features=IsolateOrigins,site-per-process '.format(device_configuration[config.CHROME_DESKTOP_DEBUG_PORT])
+        args = '--remote-debugging-port={0} --disable-features=IsolateOrigins,site-per-process '.format(device_configuration[config.CHROME_DESKTOP_DEBUG_PORT])
         # args = '--remote-debugging-port={0} --no-first-run'.format(device_configuration[config.CHROME_DESKTOP_DEBUG_PORT])
-
-        if device_configuration[config.USER_DATA_DIR] != 'random' and \
-                device_configuration[config.USER_DATA_DIR] != '[DEFAULT]':
-            user_data_dir = device_configuration[config.USER_DATA_DIR]
-            args += ' --user-data-dir=' + user_data_dir
-        elif device_configuration[config.USER_DATA_DIR] != '[DEFAULT]':
-            global random_token
-            if random_token is None:
-                random_token = random.random()
-
-            user_data_dir = '/tmp/chrome-{0}'.format(random_token)
-            args += ' --user-data-dir=' + user_data_dir
+	args += ' '.join(CHROME_FLAGS)
 
         if config.PAC_FILE_PATH in device_configuration:
             args += ' --proxy-pac-url={0}'.format(device_configuration[config.PAC_FILE_PATH])
 
         if config.IGNORE_CERTIFICATE_ERRORS in device_configuration:
-            args += ' --ignore-certificate-errors'
+            # args += ' --ignore-certificate-errors'
+            args += ' --ignore-certificate-errors-spki-list=99QFFNju58YPQnU1g2Pz8nKq7YzoKnR01M+R+kvptQI='
 
         if config.EXTENSION in device_configuration:
             args += ' --load-extension=' + device_configuration[config.EXTENSION]
@@ -70,6 +87,17 @@ def start_chrome(device_configuration):
         if config.ADDITIONAL_ARGS in device_configuration:
             more_args = ' '.join(device_configuration[config.ADDITIONAL_ARGS])
             args += ' ' + more_args
+
+        if device_configuration[config.USER_DATA_DIR] != 'random' and \
+                device_configuration[config.USER_DATA_DIR] != '[DEFAULT]':
+            user_data_dir = device_configuration[config.USER_DATA_DIR]
+            args += ' --user-data-dir=' + user_data_dir
+        elif device_configuration[config.USER_DATA_DIR] != '[DEFAULT]':
+            global random_token
+            if random_token is None:
+                random_token = random.random()
+            user_data_dir = '/tmp/chrome-{0}'.format(random_token)
+            args += ' --user-data-dir=' + user_data_dir
 
         cmd.extend(args.split(' '))
         print ' '.join(cmd)
@@ -109,7 +137,9 @@ def stop_chrome(device_configuration):
             # stdout, stderr = chrome_proc.communicate()
             # print stdout
             # print stderr
-            chrome_proc.kill()
+            # chrome_proc.kill()
+            chrome_proc.terminate()
+            chrome_proc = None
             devnull.close()
             # os.killpg(os.getpgid(chrome_proc.pid), signal.SIGTERM)
             # subprocess.call('pkill -9 chrome', shell=True)
