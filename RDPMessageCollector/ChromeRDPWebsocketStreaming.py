@@ -84,6 +84,7 @@ class ChromeRDPWebsocketStreaming(object):
         self.debugging_url = ws_url
         self.preserve_cache = preserve_cache
         self.url_hash = url_hash
+        self.blocking_msgs = set()
         self.ws = websocket.WebSocketApp(ws_url,\
                                         on_message = self.on_message,\
                                         on_error = self.on_error,\
@@ -99,7 +100,11 @@ class ChromeRDPWebsocketStreaming(object):
         Handle each message.
         '''
         message_obj = json.loads(message)
-        if 'id' in message_obj and message_obj['id'] == 1050:
+        if 'id' in message_obj and (message_obj['id'] == 1050 or message_obj['id'] == 1060):
+            if message_obj['id'] in self.blocking_msgs:
+                self.blocking_msgs.remove(message_obj['id'])
+            if len(self.blocking_msgs) == 0:
+                self.navigate_to_page()
             print(message)
 
         if not self.navigation_started:
@@ -259,6 +264,8 @@ class ChromeRDPWebsocketStreaming(object):
             self.enable_trace_collection(self.ws)
 
         self.enable_heap_profiler(self.ws)
+
+    def navigate_to_page(self):
         print 'navigating to url: ' + str(self.url)
         navigation_utils.navigate_to_page(self.ws, self.url)
         self.navigation_started = True
@@ -516,6 +523,7 @@ class ChromeRDPWebsocketStreaming(object):
         shape_network['params']['offline'] = False
         print('Shaping network: {0}'.format(shape_network))
         debug_connection.send(json.dumps(shape_network))
+        self.blocking_msgs.add(1050)
 
     def throttle_cpu(self, debug_connection, throttle_rate):
         '''Throttles the CPU.'''
@@ -526,6 +534,7 @@ class ChromeRDPWebsocketStreaming(object):
         }
         print('Throttling CPU at rate: {0}'.format(throttle_cpu))
         debug_connection.send(json.dumps(throttle_cpu))
+        self.blocking_msgs.add(1060)
 
     def enable_heap_profiler(self, debug_connection):
         '''

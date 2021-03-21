@@ -2,6 +2,9 @@ from collections import defaultdict
 
 import os
 
+# Default section
+SECTION_DEFAULT = 'default'
+
 # MANDATORY FIELDS
 DEPENDENCY_DIR = 'dependency-dir'
 RECORD_DIR = 'record-dir'
@@ -118,6 +121,7 @@ IP = 'ip'
 USE_CHROMIUM = 'use_chromium'
 USER_DATA_DIR = 'user_data_dir'
 WEB_SOCKET_DEBUGGER_URL = 'webSocketDebuggerUrl'
+BASE_CONFIG = 'base_config'
 
 DEVICE_PHONE = 'phone'
 DEVICE_MAC = 'mac'
@@ -134,6 +138,7 @@ EMULATING_DEVICE = 'emulating_device'
 NETWORK = 'network'
 ADDITIONAL_ARGS = 'additional_args'
 CPU_THROTTLE_RATE = 'cpu_throttle_rate'
+PER_SITE_CPU_THROTTLING_FILE = 'cpu_throttle_map_file'
 
 # Hardcoded values for the Chrome instances.
 ANDROID_CHROME_INSTANCE = 'com.android.chrome/com.google.android.apps.chrome.Main'
@@ -146,6 +151,7 @@ def get_device_configuration(config_reader, device):
     '''
     Constructs a device configuration map.
     '''
+    print('Getting config for ' + device)
     def get_config(config_reader, section, key, default):
         '''
         Returns the string if the key exists in the config_reader_obj otherwise returns default value specified.
@@ -161,7 +167,6 @@ def get_device_configuration(config_reader, device):
         if config_reader.has_option(section, key):
             device_config[key] = config_reader.get(section, key)
 
-
     def extract_kv_config(device_config, config_reader, section, key):
         '''
         Extracts the key value configurations.
@@ -173,7 +178,6 @@ def get_device_configuration(config_reader, device):
             config_dict[key] = value
         return config_dict
 
-
     def extract_list_config(device_config, config_reader, section, key):
         '''
         Extracts the values and returns a list corresponding to the values.
@@ -184,40 +188,64 @@ def get_device_configuration(config_reader, device):
             result.append(config)
         return result
 
-
     device_config = dict()
-    device_config[IP] = config_reader.get(device, IP)
-    device_type = config_reader.get(device, DEVICE_TYPE)
+    device_config[IP] = config_reader.get(SECTION_DEFAULT, IP)
+    device_type = config_reader.get(SECTION_DEFAULT, DEVICE_TYPE)
     device_config[DEVICE_TYPE] = device_type
+
     if device_type == DEVICE_PHONE:
         device_config[ADB_PORT] = int(config_reader.get(device, ADB_PORT))
         device_config[CHROME_INSTANCE] = ANDROID_CHROMIUM_INSTANCE if config_reader.get(device, USE_CHROMIUM) == 'True' else ANDROID_CHROME_INSTANCE
         device_config[DEVICE_ID] = config_reader.get(device, DEVICE_ID)
 
-    elif device_type == DEVICE_MAC:
-        device_config[CHROME_DESKTOP_DEBUG_PORT] = int(config_reader.get(device, CHROME_DESKTOP_DEBUG_PORT))
-        device_config[CHROME_INSTANCE] = get_config(config_reader, device, CHROME_BINARY, MAC_CHROME_INSTANCE)
-        device_config[EMULATING_DEVICE] = { USER_AGENT: get_config(config_reader, device, USER_AGENT, None) }
-        populate_if_exists(device_config, config_reader, device, PAC_FILE_PATH)
-
     elif device_type == DEVICE_UBUNTU:
-        device_config[CHROME_DESKTOP_DEBUG_PORT] = int(config_reader.get(device, CHROME_DESKTOP_DEBUG_PORT))
-        device_config[CHROME_INSTANCE] = get_config(config_reader, device, CHROME_BINARY, UBUNTU_CHROME_INSTANCE)
-        populate_if_exists(device_config, config_reader, device, PAC_FILE_PATH)
-        populate_if_exists(device_config, config_reader, device, IGNORE_CERTIFICATE_ERRORS)
-        populate_if_exists(device_config, config_reader, device, EXTENSION)
+        # Pull mandatory fields.
+        device_config[CHROME_DESKTOP_DEBUG_PORT] = int(config_reader.get(SECTION_DEFAULT, CHROME_DESKTOP_DEBUG_PORT))
+        default_chrome_binary = config_reader.get(SECTION_DEFAULT, CHROME_BINARY)
+        device_config[CHROME_INSTANCE] = get_config(config_reader, device, CHROME_BINARY, default_chrome_binary)
+        populate_if_exists(device_config, config_reader, SECTION_DEFAULT, PAC_FILE_PATH)
+        populate_if_exists(device_config, config_reader, SECTION_DEFAULT, IGNORE_CERTIFICATE_ERRORS)
+        populate_if_exists(device_config, config_reader, SECTION_DEFAULT, EXTENSION)
+        device_config[USER_DATA_DIR] = get_config(config_reader, SECTION_DEFAULT, USER_DATA_DIR, 'random')
+        if config_reader.has_option(SECTION_DEFAULT, ADDITIONAL_ARGS):
+            device_config[ADDITIONAL_ARGS] = extract_list_config(device_config, config_reader, SECTION_DEFAULT, ADDITIONAL_ARGS)
+
+        # Pull per-device fields. For the experiment setup.
+        base_config = config_reader.get(device, BASE_CONFIG)
+        device_config[CHROME_RUNNING_MODE] = get_config(config_reader, base_config, CHROME_RUNNING_MODE, 'headless')
+        # Try to populate CPU throttling with base config first. Otherwise, try with device.
+        populate_if_exists(device_config, config_reader, base_config,
+                CPU_THROTTLE_RATE)
         populate_if_exists(device_config, config_reader, device,
                 CPU_THROTTLE_RATE)
-        device_config[USER_DATA_DIR] = get_config(config_reader, device, USER_DATA_DIR, 'random')
-        device_config[CHROME_RUNNING_MODE] = get_config(config_reader, device, CHROME_RUNNING_MODE, 'headless')
+        populate_if_exists(device_config, config_reader, device,
+                PER_SITE_CPU_THROTTLING_FILE)
 
-        device_config[EMULATING_DEVICE] = { USER_AGENT: get_config(config_reader, device, USER_AGENT, None) } 
-        if config_reader.has_option(device, SCREEN_SIZE):
-            screen_config_dict = extract_kv_config(device_config, config_reader, device, SCREEN_SIZE)
+        # populate CPU throttling.
+        # TODO: populate as a map with the overall as * instead of per site.
+        if PER_SITE_CPU_THROTTLING_FILE in device_config:
+            per_site_cpu_throttling_map = generate_per_site_cpu_throttling(device_config[PER_SITE_CPU_THROTTLING_FILE])
+        elif CPU_THROTTLE_RATE in device_config:
+            per_site_cpu_throttling_map = { '*': device_config[CPU_THROTTLE_RATE] }
+        else:
+            per_site_cpu_throttling_map = { '*': '1' }
+        device_config[CPU_THROTTLE_RATE] = per_site_cpu_throttling_map
+
+        device_config[EMULATING_DEVICE] = { USER_AGENT: get_config(config_reader, base_config, USER_AGENT, None) } 
+        if config_reader.has_option(base_config, SCREEN_SIZE):
+            screen_config_dict = extract_kv_config(device_config, config_reader, base_config, SCREEN_SIZE)
             device_config[EMULATING_DEVICE].update(screen_config_dict)
         if config_reader.has_option(device, NETWORK):
             device_config[NETWORK] = extract_kv_config(device_config, config_reader, device, NETWORK)
-        if config_reader.has_option(device, ADDITIONAL_ARGS):
-            device_config[ADDITIONAL_ARGS] = extract_list_config(device_config, config_reader, device, ADDITIONAL_ARGS)
-
+    else:
+        raise RuntimeError('DeviceNotSupported: ' + device_type + ' is not supported.')
+    print(device_config)
     return device_config
+
+def generate_per_site_cpu_throttling(per_site_input_filename):
+    retval = {}
+    with open(per_site_input_filename, 'r') as input_file:
+        for l in input_file:
+            l = l.strip().split(' ')
+            retval[l[0]] = int(round(float(l[1])))
+    return retval

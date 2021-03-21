@@ -87,10 +87,11 @@ def get_device_config_path(device_name, current_path='.'):
 
     If the device does not exists, the script will terminate.
     '''
-    if device_name in DEVICES:
-        return current_path + DEVICES[device_name]
-    print 'available devices: {0}'.format(str([ d for d in DEVICES.keys() ]))
-    exit()
+    return './device_config/desktop_replay.cfg'
+    # if device_name in DEVICES:
+    #     return current_path + DEVICES[device_name]
+    # print 'available devices: {0}'.format(str([ d for d in DEVICES.keys() ]))
+    # exit()
 
 def get_device_config(device, running_path='.'):
     from utils import config
@@ -120,7 +121,6 @@ def initialize_browser(device_info):
             closed_tabs = True
         except requests.exceptions.ConnectionError as e:
             pass
-    print 'here'
     chrome_utils.create_tab(device_info[2])
 
 def check_previous_page_load(current_run_index, base_output_dir, raw_line):

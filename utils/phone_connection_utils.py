@@ -43,6 +43,29 @@ CHROME_FLAGS = [
     '--load-media-router-component-extension=0'
 ]
 
+# CHROME_FLAGS = [
+#     '--disable-background-networking',
+#     '--no-default-browser-check',
+#     '--no-first-run',
+#     '--process-per-tab',
+#     '--new-window',
+#     '--disable-infobars',
+#     '--disable-translate',
+#     '--disable-notifications',
+#     '--disable-desktop-notifications',
+#     '--disable-save-password-bubble',
+#     '--allow-running-insecure-content',
+#     '--disable-component-update',
+#     '--disable-background-downloads',
+#     '--disable-add-to-shelf',
+#     '--disable-client-side-phishing-detection',
+#     '--disable-datasaver-prompt',
+#     '--disable-default-apps',
+#     '--disable-domain-reliability',
+#     '--safebrowsing-disable-auto-update',
+#     '--disable-background-timer-throttling'
+# ]
+
 def start_chrome(device_configuration):
     '''
     Setup and run chrome on Android.
@@ -66,8 +89,9 @@ def start_chrome(device_configuration):
             # cmd = [ 'xvfb-run',  '--server-args="-screen 0, 1920x1080x16"', 'dbus-launch', '--exit-with-session', device_configuration[config.CHROME_INSTANCE] ]
             cmd = [ 'xvfb-run',  '--server-args="-screen 0, 1024x768x16"', 'dbus-launch', '--exit-with-session', device_configuration[config.CHROME_INSTANCE] ]
 
-        # args = '--remote-debugging-port={0} --disable-logging --enable-devtools-experiments --disable-features=IsolateOrigins,site-per-process '.format(device_configuration[config.CHROME_DESKTOP_DEBUG_PORT])
-        args = '--remote-debugging-port={0} --disable-features=IsolateOrigins,site-per-process '.format(device_configuration[config.CHROME_DESKTOP_DEBUG_PORT])
+        args = '--remote-debugging-port={0} --disable-logging --enable-devtools-experiments --disable-features=IsolateOrigins,site-per-process '.format(device_configuration[config.CHROME_DESKTOP_DEBUG_PORT])
+        # args = '--remote-debugging-port={0} --disable-features=IsolateOrigins,site-per-process '.format(device_configuration[config.CHROME_DESKTOP_DEBUG_PORT])
+        # args = '--remote-debugging-port={0} '.format(device_configuration[config.CHROME_DESKTOP_DEBUG_PORT])
         # args = '--remote-debugging-port={0} --no-first-run'.format(device_configuration[config.CHROME_DESKTOP_DEBUG_PORT])
 	args += ' '.join(CHROME_FLAGS)
 

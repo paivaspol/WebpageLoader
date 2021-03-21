@@ -43,7 +43,16 @@ def main(device_configuration, url, reload_page, url_hash):
     device_configuration['page_id'] = page_id
     emulating_device_params = device_configuration[config.EMULATING_DEVICE] if config.EMULATING_DEVICE in device_configuration else None
     network_params = device_configuration[config.NETWORK] if config.NETWORK in device_configuration else None
-    cpu_throttle_rate = device_configuration[config.CPU_THROTTLE_RATE] if config.CPU_THROTTLE_RATE in device_configuration else 1
+
+    # populate CPU throttling rate.
+    cpu_throttle_rate = 1
+    if config.CPU_THROTTLE_RATE in device_configuration:
+        escaped_page = common_module.escape_page(url)
+        per_site_cpu_throttling = device_configuration[config.CPU_THROTTLE_RATE]
+        if '*' in per_site_cpu_throttling:
+            cpu_throttle_rate = per_site_cpu_throttling['*']
+        elif escaped_page in per_site_cpu_throttling:
+            cpu_throttle_rate = per_site_cpu_throttling[escaped_page]
 
     if args.get_dependency_baseline:
         debugging_socket = ChromeRDPWebsocketStreaming(debugging_url, url,
